@@ -81,7 +81,11 @@ type model struct {
 	confirmKind   confirmKind
 	confirmID     string
 	confirmReturn mode
-	linkCursor    int // which link 'o' opens next, within the selected note
+
+	// What "o" found in the selected note, and which row of it is highlighted,
+	// while the picker is up.
+	picks      []Target
+	pickCursor int
 
 	// Rendering Markdown is the expensive part of moving the cursor, so the
 	// renderer is built once per width and the output cached per note.
@@ -191,7 +195,6 @@ func (m *model) moveCursor(delta int) {
 		return
 	}
 	m.cursor = next
-	m.linkCursor = 0
 	m.renderPreview()
 }
 
@@ -261,13 +264,14 @@ func (m *model) renderPreview() {
 	}
 
 	body := stripDerivedTitle(n.Content, n.Title)
-	out, err := m.renderer.Render(separateListGroups(hideLinkTargets(attachmentChips(body))))
+	prepared, targets := m.prepareForRender(body)
+	out, err := m.renderer.Render(separateListGroups(prepared))
 	if err != nil {
 		m.preview.SetContent(n.Content)
 		return
 	}
 	// Wrap the tagged link text now that the layout is already measured.
-	out = linkifyRendered(out, OrderedTargets(body))
+	out = linkifyRendered(out, targets)
 	m.rendered[n.ID+"\x00"+n.UpdatedAt] = out
 	m.preview.SetContent(out)
 	m.preview.GotoTop()
@@ -398,12 +402,13 @@ func (m *model) renderDraft() {
 		m.draft.SetContent(content)
 		return
 	}
-	out, err := r.Render(separateListGroups(hideLinkTargets(attachmentChips(content))))
+	prepared, targets := m.prepareForRender(content)
+	out, err := r.Render(separateListGroups(prepared))
 	if err != nil {
 		m.draft.SetContent(content)
 		return
 	}
-	m.draft.SetContent(linkifyRendered(out, OrderedTargets(content)))
+	m.draft.SetContent(linkifyRendered(out, targets))
 	m.draft.GotoTop()
 }
 
@@ -628,29 +633,81 @@ func fallbackEditor() string {
 	return ""
 }
 
-// openLink opens the note's links one after another, since a terminal cannot
-// click the text the way a browser can.
-func (m *model) openLink() tea.Cmd {
+// openTargets is what "o" does: it opens the one thing a note holds, or asks
+// which one when there is more than one. Opening them in turn and hoping was
+// the old behaviour, and it meant pressing the key to find out what it did.
+func (m *model) openTargets() tea.Cmd {
 	n := m.selected()
 	if n == nil {
 		return nil
 	}
-	links := Links(n.Content)
-	if len(links) == 0 {
-		return flash("Nothing to open in this note")
-	}
-	if m.linkCursor >= len(links) {
-		m.linkCursor = 0
-	}
-	url := m.resolveTarget(links[m.linkCursor])
-	openBrowser(url)
+	targets := m.openableIn(n.Content)
 
-	msg := "Opened " + url
-	if len(links) > 1 {
-		msg += fmt.Sprintf("  (%d of %d — press o for the next)", m.linkCursor+1, len(links))
+	switch len(targets) {
+	case 0:
+		return flash("Nothing to open in this note")
+	case 1:
+		return m.open(targets[0])
 	}
-	m.linkCursor++
-	return flash(msg)
+	m.picks = targets
+	m.pickCursor = 0
+	m.mode = modePick
+	return nil
+}
+
+// open hands one target to the system and says so.
+func (m *model) open(t Target) tea.Cmd {
+	openBrowser(t.Open)
+	return flash("Opened " + t.Open)
+}
+
+// openableIn is everything in a note worth handing to the system opener, in
+// the order it appears: the marked-up links and attachments first, then any
+// URL written out in full.
+func (m model) openableIn(md string) []Target {
+	_, marked := m.prepareForRender(md)
+	out := openableTargets(marked)
+	return append(out, bareURLTargets(md, out)...)
+}
+
+// openableTargets drops what the picker has no business offering. An anchor
+// points inside the note itself, and the same destination written twice is
+// still one thing to open.
+func openableTargets(in []Target) []Target {
+	seen := map[string]bool{}
+	var out []Target
+	for _, t := range in {
+		if !t.clickable() || seen[t.Open] {
+			continue
+		}
+		seen[t.Open] = true
+		out = append(out, t)
+	}
+	return out
+}
+
+// bareURLTargets picks up URLs written out in full, which are links to the
+// reader even though nothing in the note marks them up as one. Anything
+// already covered by an inline link is left out so it is not offered twice.
+func bareURLTargets(md string, have []Target) []Target {
+	seen := map[string]bool{}
+	for _, t := range have {
+		seen[t.Open] = true
+	}
+	var out []Target
+	eachLineOutsideCode(md, func(line string) string {
+		rest := inlineLink.ReplaceAllString(line, "")
+		for _, u := range bareURL.FindAllString(rest, -1) {
+			u = strings.TrimRight(u, ".,;:!?")
+			if u == "" || seen[u] {
+				continue
+			}
+			seen[u] = true
+			out = append(out, Target{Label: u, Open: u, Kind: targetLink})
+		}
+		return line
+	})
+	return out
 }
 
 func (m *model) toggleWeb() tea.Cmd {

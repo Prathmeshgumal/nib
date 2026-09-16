@@ -10,6 +10,7 @@ const (
 	modeHelp
 	modeTrash
 	modeRaw
+	modePick
 )
 
 // helpLine is the context-sensitive hint bar along the bottom.
@@ -30,6 +31,8 @@ func (m model) helpLine() string {
 		return "w/s move   ↵ restore   d delete for good   E empty trash   esc back"
 	case modeHelp:
 		return "↑/↓ scroll   esc close"
+	case modePick:
+		return "↑/↓ choose   ↵ open   1-9 open that one   esc cancel"
 	default:
 		return "w/s note  j/k scroll  ↵ edit  n new  / search  R source  o open  d trash  W web  ? help  q quit"
 	}
@@ -114,11 +117,14 @@ const helpText = `
     so a digit never reaches a program running inside one.
 
   Other
-    o            open a link, image or attached file from this note, in
-                 whatever your system uses for it (again for the next one).
-                 Links are real terminal hyperlinks too, but while the app is
-                 holding the mouse most terminals send the click here instead
-                 of opening it, so o is the dependable route
+    o            open something from this note — a link, an image or an
+                 attached file — in whatever your system uses for it. One
+                 thing opens straight away; several bring up a list to
+                 choose from, where 1-9 opens a row outright
+                 Links and attachments are real terminal hyperlinks too, but
+                 while the app is holding the mouse most terminals send a
+                 plain click here instead of opening it. Hold ctrl (shift in
+                 some terminals) to click one, or use o, which always works
     d            move to trash (asks first)
     u            undo the last delete (again for the one before it)
     T            the trash — restore anything deleted in the last 30 days

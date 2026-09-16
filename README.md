@@ -318,18 +318,31 @@ Search matches both titles and note bodies, and ignores case.
 
 | Key | Does |
 | --- | --- |
-| `o` | Open a link, image or attached file from this note |
+| `o` | Open something from this note — one thing opens, several offer a list |
 
 Write links as `[some text](https://example.com)`. The preview shows only *some text* —
 the URL stays hidden, like it would in a browser.
 
-**Press `o` to open one.** If the note has several, press `o` again for the next; the
-status line names the one it opened.
+**Press `o` to open one.** If the note holds just one thing, it opens straight away. If
+it holds several, a list comes up:
 
-The preview does emit real terminal hyperlinks (OSC 8), so the link text is genuinely
-clickable in GNOME Terminal, iTerm2, kitty, WezTerm and Windows Terminal. But while the
-app is holding the mouse for click-to-focus, most terminals deliver that click to the app
-instead of opening the link — which is why `o` is the route to rely on.
+```
+Open (3)
+Opens in whichever app this desktop uses for it.
+
+▸ 1 file System Design Interview by Alex Xu (1).pdf
+  2 img  Screenshot From 2026-09-13 22-07-27.png
+  3 link https://github.com
+```
+
+`↑`/`↓` to choose and `↵` to open, or press `1`–`9` to open a row outright. `esc` closes
+it having opened nothing.
+
+The preview emits real terminal hyperlinks (OSC 8), so link text and attached filenames
+are genuinely clickable in GNOME Terminal, iTerm2, kitty, WezTerm and Windows Terminal.
+But while the app is holding the mouse for click-to-focus, most terminals deliver a plain
+click to the app instead of opening the link. Hold `ctrl` — `shift` in some terminals — to
+click one, or use `o`, which always works.
 
 URLs written out in full are clickable as well — they have no text to hide behind, so
 they stay visible. Link syntax inside a code block stays literal.

@@ -9,9 +9,11 @@ import (
 // same path the reader sees.
 func renderPreviewBody(t *testing.T, content, title string) string {
 	t.Helper()
+	var m model
 	body := stripDerivedTitle(content, title)
-	out := renderWithMarkers(t, separateListGroups(hideLinkTargets(body)))
-	return linkifyRendered(out, OrderedTargets(body))
+	prepared, targets := m.prepareForRender(body)
+	out := renderWithMarkers(t, separateListGroups(prepared))
+	return linkifyRendered(out, targets)
 }
 
 func TestLinkTextBecomesClickable(t *testing.T) {
@@ -82,10 +84,11 @@ func TestImagesDoNotShiftLinkTargets(t *testing.T) {
 	}
 }
 
-func TestOrderedTargets(t *testing.T) {
-	got := OrderedTargets("[a](https://a.test) ![i](https://i.test) [b](https://b.test)")
+func TestTargetsSkipImagesSoLinksKeepTheirs(t *testing.T) {
+	var m model
+	_, got := m.prepareForRender("[a](https://a.test) ![i](https://i.test) [b](https://b.test)")
 	want := []string{"https://a.test", "https://b.test"}
-	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+	if len(got) != len(want) || got[0].Open != want[0] || got[1].Open != want[1] {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }

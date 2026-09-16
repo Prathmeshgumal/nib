@@ -23,6 +23,8 @@ func (m model) View() string {
 		return m.trashView()
 	case modeHelp:
 		return m.helpView()
+	case modePick:
+		return m.pickView()
 	case modeEdit:
 		return m.editView()
 	default:
@@ -212,4 +214,70 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// pickView lists what the selected note holds, so "o" is a choice rather than
+// a guess. The tag in front of each row says what opening it will do.
+func (m model) pickView() string {
+	inner := m.height - 4
+	if inner < 3 {
+		inner = 3
+	}
+
+	var b strings.Builder
+	b.WriteString(titleStyle.Render(fmt.Sprintf("Open (%d)", len(m.picks))) + "\n")
+	b.WriteString(dimStyle.Render("Opens in whichever app this desktop uses for it.") + "\n\n")
+
+	rows := inner - 3
+	if rows < 1 {
+		rows = 1
+	}
+	start := 0
+	if m.pickCursor >= rows {
+		start = m.pickCursor - rows + 1
+	}
+	end := min(start+rows, len(m.picks))
+
+	for i := start; i < end; i++ {
+		t := m.picks[i]
+		// The number is the key that opens this row, so it stops being shown
+		// once there is no key left to show.
+		num := "  "
+		if i < 9 {
+			num = fmt.Sprintf("%d ", i+1)
+		}
+		tag := fmt.Sprintf("%-4s ", t.Kind.tag())
+
+		// A link's text says little on its own — "link", "here" — so the
+		// destination is shown beside it. A file's name already says what it
+		// is, and its path is a long prefix every row would share.
+		trail := ""
+		if t.Kind == targetLink && t.Label != t.Open {
+			trail = "  " + middleTruncate(t.Open, 40)
+		}
+		label := middleTruncate(t.Label, m.width-20-len([]rune(trail)))
+
+		line := "  " + dimStyle.Render(num+tag) + label + dimStyle.Render(trail)
+		if i == m.pickCursor {
+			line = cursorStyle.Render("▸ ") + dimStyle.Render(num+tag) +
+				selectedStyle.Render(label) + dimStyle.Render(trail)
+		}
+		b.WriteString(line + "\n")
+	}
+
+	return paneStyle.Width(m.width-4).Height(inner).Render(b.String()) +
+		"\n" + m.footer()
+}
+
+// middleTruncate shortens from the middle, because the end of a filename is
+// the part that says what it is and the start is the part that says which.
+func middleTruncate(s string, width int) string {
+	r := []rune(s)
+	if width < 6 || len(r) <= width {
+		return s
+	}
+	keep := width - 1
+	head := (keep + 1) / 2
+	tail := keep - head
+	return string(r[:head]) + "…" + string(r[len(r)-tail:])
 }
