@@ -1,10 +1,15 @@
 package tui
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/Prathmeshgumal/nib/internal/attach"
 )
 
 // A terminal has no drag-and-drop. Dragging a file onto the window makes the
@@ -129,4 +134,62 @@ func expandHome(s string) string {
 		return filepath.Clean(s)
 	}
 	return filepath.Join(home, s[2:])
+}
+
+// attachDropped stores the dropped files and writes a reference to each into
+// the note being edited.
+//
+// It runs in the handler rather than as a command: copying a local file takes
+// milliseconds, and threading the result back through a message would buy
+// nothing but a chance for the cursor to have moved in between.
+func (m *model) attachDropped(paths []string) tea.Cmd {
+	at := m.st.Attachments()
+
+	var lines []string
+	var failure error
+	for _, path := range paths {
+		ref, err := addFile(at, path)
+		if err != nil {
+			failure = err
+			continue
+		}
+		lines = append(lines, ref.Markdown())
+	}
+
+	if len(lines) == 0 {
+		if failure != nil {
+			return flash("Could not attach it: " + failure.Error())
+		}
+		return flash("Could not attach it")
+	}
+
+	// Each reference gets a line to itself: an image wedged into a paragraph
+	// renders as part of that paragraph.
+	text := strings.Join(lines, "\n")
+	if _, col := m.currentLine(); col > 0 {
+		text = "\n" + text
+	}
+	m.body.InsertString(text + "\n")
+
+	switch {
+	case failure != nil:
+		return flash(plural(len(lines), "file") + " attached, one could not be read")
+	case len(lines) == 1:
+		return flash("Attached " + filepath.Base(paths[0]))
+	default:
+		return flash("Attached " + plural(len(lines), "files"))
+	}
+}
+
+func addFile(at *attach.Store, path string) (attach.Ref, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return attach.Ref{}, err
+	}
+	defer f.Close()
+	return at.Add(filepath.Base(path), f)
+}
+
+func plural(n int, word string) string {
+	return fmt.Sprintf("%d %s", n, word)
 }

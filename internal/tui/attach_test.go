@@ -4,7 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/Prathmeshgumal/nib/internal/attach"
 )
 
 func touch(t *testing.T, dir, name string) string {
@@ -77,5 +82,69 @@ func TestDroppedPathsExpandsHome(t *testing.T) {
 	text := "~/" + filepath.Base(f.Name())
 	if got := droppedPaths(text); !slices.Equal(got, []string{f.Name()}) {
 		t.Errorf("droppedPaths(%q) = %v, want [%s]", text, got, f.Name())
+	}
+}
+
+// editing returns a model sitting in a new note, the way pressing "n" leaves
+// it: the widgets are focused, which setting the mode by hand does not do.
+func editing(t *testing.T) model {
+	t.Helper()
+	m, _ := newTestModel(t)
+	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = press(m, key('n'))
+	if m.mode != modeEdit {
+		t.Fatalf("mode = %v, want modeEdit after pressing n", m.mode)
+	}
+	return m
+}
+
+func TestPastingAPathAttachesTheFile(t *testing.T) {
+	m := editing(t)
+
+	dir := t.TempDir()
+	png := filepath.Join(dir, "shot.png")
+	if err := os.WriteFile(png, []byte("\x89PNG\r\n\x1a\npretend"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(png), Paste: true})
+	got := updated.(model).body.Value()
+
+	if !strings.Contains(got, "](attachments/") {
+		t.Errorf("body = %q, want an attachment reference", got)
+	}
+	if strings.Contains(got, png) {
+		t.Errorf("body = %q, want the path replaced, not typed", got)
+	}
+	if ids := attach.Refs(got); len(ids) != 1 {
+		t.Errorf("Refs(%q) = %v, want exactly one", got, ids)
+	}
+}
+
+func TestPastingTextStillPastesText(t *testing.T) {
+	m := editing(t)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("just words"), Paste: true})
+	if got := updated.(model).body.Value(); !strings.Contains(got, "just words") {
+		t.Errorf("body = %q, want the text pasted unchanged", got)
+	}
+}
+
+func TestPastingIntoTheTitleIsNotAnImport(t *testing.T) {
+	// The title is one line of plain text; an image reference there is noise.
+	m := editing(t)
+	m.focusTitle = true
+	m.title.Focus()
+	m.body.Blur()
+
+	dir := t.TempDir()
+	png := filepath.Join(dir, "shot.png")
+	if err := os.WriteFile(png, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(png), Paste: true})
+	if got := updated.(model).title.Value(); !strings.Contains(got, png) {
+		t.Errorf("title = %q, want the path pasted as text", got)
 	}
 }
