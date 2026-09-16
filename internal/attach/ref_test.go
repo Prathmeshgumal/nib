@@ -59,3 +59,33 @@ func TestDescribeIsDeterministic(t *testing.T) {
 		t.Errorf("ext = %q, want .jpg", firstExt)
 	}
 }
+
+func TestRefMarkdown(t *testing.T) {
+	image := Ref{ID: "8f3a91c2d4e5f607", Name: "screenshot.png", Ext: ".png", MIME: "image/png"}
+	if got, want := image.Markdown(), "![screenshot.png](attachments/8f3a91c2d4e5f607.png)"; got != want {
+		t.Errorf("image: got %q, want %q", got, want)
+	}
+
+	doc := Ref{ID: "2b7c0419aa3d1e88", Name: "report.pdf", Ext: ".pdf", MIME: "application/pdf"}
+	if got, want := doc.Markdown(), "[report.pdf](attachments/2b7c0419aa3d1e88.pdf)"; got != want {
+		t.Errorf("document: got %q, want %q", got, want)
+	}
+}
+
+func TestRefMarkdownEscapesTheName(t *testing.T) {
+	// A filename with brackets would otherwise end the link text early and
+	// leave the rest of the name loose in the note.
+	r := Ref{ID: "0123456789abcdef", Name: "photo [final] (2).png", Ext: ".png", MIME: "image/png"}
+	got := r.Markdown()
+	want := `![photo \[final\] (2).png](attachments/0123456789abcdef.png)`
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestRefMarkdownSurvivesAnEmptyName(t *testing.T) {
+	r := Ref{ID: "0123456789abcdef", Name: "", Ext: ".png", MIME: "image/png"}
+	if got, want := r.Markdown(), "![image](attachments/0123456789abcdef.png)"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

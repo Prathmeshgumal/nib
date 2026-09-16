@@ -66,3 +66,27 @@ func extFromName(name string) string {
 	}
 	return ext
 }
+
+// markdownName escapes the characters that would otherwise end the link text
+// early. Brackets are the only ones that can: parentheses inside link text are
+// left alone, which keeps ordinary filenames readable.
+var markdownName = strings.NewReplacer(`\`, `\\`, `[`, `\[`, `]`, `\]`)
+
+// Markdown is the line to put in a note: the image form for an image, the
+// plain link form for anything else.
+func (r Ref) Markdown() string {
+	name := r.Name
+	if name == "" {
+		name = "file"
+		if r.isImage() {
+			name = "image"
+		}
+	}
+	link := "[" + markdownName.Replace(name) + "](attachments/" + r.Base() + ")"
+	if r.isImage() {
+		return "!" + link
+	}
+	return link
+}
+
+func (r Ref) isImage() bool { return strings.HasPrefix(r.MIME, "image/") }
