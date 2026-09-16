@@ -15,6 +15,13 @@ const SnapshotsKept = 10
 // Snapshot copies the database file into a backups/ directory beside it, then
 // prunes the oldest copies. It runs before the database is opened, so the copy
 // is of a quiescent file. A failure here must never stop the app starting.
+//
+// Attachments are deliberately left out. The database is mutable, so a copy of
+// it from an hour ago is worth having; an attachment never changes, because it
+// is named after a hash of its own contents. Copying them here would mean up
+// to SnapshotsKept duplicates of every picture, rewritten on every launch, to
+// protect bytes that cannot go stale. What attachments need is not to be lost,
+// and the thirty-day trash in the attach package is what does that.
 func Snapshot(dbPath string) (string, error) {
 	info, err := os.Stat(dbPath)
 	if err != nil {
@@ -28,7 +35,9 @@ func Snapshot(dbPath string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	dest := filepath.Join(dir, fmt.Sprintf("notes-%s.db", time.Now().Format("20060102-150405")))
+	// Named for the program. Snapshots written before the rename are called
+	// notes-*.db; prune goes by extension, so those are still cleaned up.
+	dest := filepath.Join(dir, fmt.Sprintf("nib-%s.db", time.Now().Format("20060102-150405")))
 	if err := copyFile(dbPath, dest); err != nil {
 		return "", err
 	}
