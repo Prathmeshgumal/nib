@@ -1,6 +1,8 @@
 package attach
 
 import (
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -111,4 +113,51 @@ func TestAddLeavesNoTemporaryFiles(t *testing.T) {
 	if len(entries) != 0 {
 		t.Errorf("%d files left in .tmp, want none", len(entries))
 	}
+}
+
+func TestAddRefusesAFileOverTheCap(t *testing.T) {
+	s := newTestStore(t)
+
+	// One byte past the cap, streamed rather than allocated.
+	_, err := s.Add("huge.bin", io.LimitReader(zeros{}, MaxSize+1))
+	if !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("err = %v, want ErrTooLarge", err)
+	}
+
+	for _, sub := range []string{".", ".tmp"} {
+		entries, err := os.ReadDir(filepath.Join(s.Dir(), sub))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var files int
+		for _, e := range entries {
+			if !e.IsDir() {
+				files++
+			}
+		}
+		if files != 0 {
+			t.Errorf("%s holds %d files after a refused add, want none", sub, files)
+		}
+	}
+}
+
+func TestAddAcceptsAFileExactlyAtTheCap(t *testing.T) {
+	s := newTestStore(t)
+	ref, err := s.Add("big.bin", io.LimitReader(zeros{}, MaxSize))
+	if err != nil {
+		t.Fatalf("a file exactly at the cap was refused: %v", err)
+	}
+	if ref.Size != MaxSize {
+		t.Errorf("Size = %d, want %d", ref.Size, MaxSize)
+	}
+}
+
+// zeros is an endless reader, so a large test file costs no memory.
+type zeros struct{}
+
+func (zeros) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }

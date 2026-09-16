@@ -71,9 +71,14 @@ func (s *Store) Add(name string, r io.Reader) (Ref, error) {
 	head := &headBuffer{limit: 512}
 	dst := io.MultiWriter(tmp, sum, head)
 
-	size, err := io.Copy(dst, r)
+	// Read one byte past the cap, so hitting the limit is distinguishable
+	// from ending exactly on it.
+	size, err := io.Copy(dst, io.LimitReader(r, MaxSize+1))
 	if err != nil {
 		return Ref{}, fmt.Errorf("reading the file: %w", err)
+	}
+	if size > MaxSize {
+		return Ref{}, fmt.Errorf("%s is %d bytes: %w", name, size, ErrTooLarge)
 	}
 	if err := tmp.Sync(); err != nil {
 		return Ref{}, fmt.Errorf("flushing the file: %w", err)
