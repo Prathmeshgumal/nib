@@ -1,9 +1,11 @@
 package attach
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -206,5 +208,33 @@ func TestPurgeExpiredOnAnEmptyTrash(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("purged %d from an empty trash, want 0", n)
+	}
+}
+
+func TestSweepSurvivesConcurrentSweeps(t *testing.T) {
+	// Two processes starting at once both sweep. They race on every rename;
+	// whoever loses finds the file already gone, which is work done, not a
+	// failure.
+	s := newTestStore(t)
+	for i := range 20 {
+		add(t, s, fmt.Sprintf("file %d", i))
+	}
+
+	errs := make(chan error, 4)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, err := s.Sweep(refs())
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Errorf("concurrent sweep: %v", err)
+		}
 	}
 }

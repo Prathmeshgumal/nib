@@ -1,12 +1,17 @@
 package attach
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+// errRaced means another process moved the file first. It never reaches a
+// caller: it only tells the loop to skip that file and not count it.
+var errRaced = errors.New("already moved")
 
 // Sweep reconciles the directory against the ids the notes actually use.
 //
@@ -22,12 +27,17 @@ func (s *Store) Sweep(referenced map[string]struct{}) (trashed, restored int, er
 		src := filepath.Join(from, base)
 		dst := filepath.Join(to, base)
 		if err := os.Rename(src, dst); err != nil {
+			// Another process swept at the same moment and won the race. Its
+			// work is ours, so there is nothing to do and nothing wrong.
+			if errors.Is(err, os.ErrNotExist) {
+				return errRaced
+			}
 			return fmt.Errorf("moving %s: %w", base, err)
 		}
 		// Rename keeps the original modification time, and PurgeExpired reads
 		// it to decide what is old. Stamp it so the clock starts now.
 		now := time.Now()
-		if err := os.Chtimes(dst, now, now); err != nil {
+		if err := os.Chtimes(dst, now, now); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("stamping %s: %w", base, err)
 		}
 		return nil
@@ -47,6 +57,9 @@ func (s *Store) Sweep(referenced map[string]struct{}) (trashed, restored int, er
 			continue
 		}
 		if err := move(s.dir, trash, e.Name()); err != nil {
+			if errors.Is(err, errRaced) {
+				continue
+			}
 			return trashed, restored, err
 		}
 		trashed++
@@ -64,6 +77,9 @@ func (s *Store) Sweep(referenced map[string]struct{}) (trashed, restored int, er
 			continue
 		}
 		if err := move(trash, s.dir, e.Name()); err != nil {
+			if errors.Is(err, errRaced) {
+				continue
+			}
 			return trashed, restored, err
 		}
 		restored++
