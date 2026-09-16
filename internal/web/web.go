@@ -58,6 +58,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/notes/", s.handleItem)
 	mux.HandleFunc("/api/trash", s.handleTrash)
 	mux.HandleFunc("/api/trash/", s.handleTrashItem)
+	mux.HandleFunc("/api/attachments", s.handleUpload)
+	mux.HandleFunc("/attachments/", s.handleAttachment)
 	mux.Handle("/", s.staticHandler())
 	return mux
 }
