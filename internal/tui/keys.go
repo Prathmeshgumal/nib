@@ -60,9 +60,10 @@ const helpText = `
                  and "scroll this one", so there is always a key whose effect
                  does not depend on where the mouse has been.
 
-                 Selecting text needs shift held down while you drag, because
-                 the app is holding the mouse. R gives the mouse back — see
-                 Copying, below.
+                 Selecting text here needs shift held down while you drag,
+                 because the app is holding the mouse. It only holds it on this
+                 screen: the editor, the trash, the help and R all give it
+                 straight back, so selecting in those is normal.
 
   Copying
     R            the Markdown source, full-screen and borderless. The app

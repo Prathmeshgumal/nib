@@ -2,6 +2,7 @@ package tui
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -970,5 +971,97 @@ func TestSourceViewReleasesTheMouse(t *testing.T) {
 	}
 	if cmd() != tea.EnableMouseCellMotion() {
 		t.Errorf("leaving returned %T, want the mouse taken back", cmd())
+	}
+}
+
+// holdsMouse reports which mouse instruction a command carries, looking inside
+// a batch since a mode change usually brings other work along.
+//
+// Commands are identified by their function pointer, never by running them. A
+// mode change can batch in the cursor blink or another timer, and running one
+// of those stalls the test for as long as it ticks. The single exception is a
+// batch itself, which only hands back its contents.
+func holdsMouse(cmd tea.Cmd) (released, taken bool) {
+	if cmd == nil {
+		return false, false
+	}
+	is := func(c, want tea.Cmd) bool {
+		return c != nil && reflect.ValueOf(c).Pointer() == reflect.ValueOf(want).Pointer()
+	}
+	check := func(c tea.Cmd) {
+		if is(c, tea.DisableMouse) {
+			released = true
+		}
+		if is(c, tea.EnableMouseCellMotion) {
+			taken = true
+		}
+	}
+
+	check(cmd)
+	if released || taken {
+		return released, taken
+	}
+	if batch, ok := cmd().(tea.BatchMsg); ok {
+		for _, c := range batch {
+			check(c)
+		}
+	}
+	return released, taken
+}
+
+// While the app holds the mouse the terminal sends a burst of escape sequences
+// for every scroll, and a fast scroll overruns the input parser, which spills
+// the remainder as literal text. In the editor that text would be typed into
+// the note, so the mouse has to go back to the terminal on the way in.
+func TestEditorReleasesTheMouse(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		open tea.Msg
+	}{
+		{"enter", tea.KeyMsg{Type: tea.KeyEnter}},
+		{"n", key('n')},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := longNotesModel(t, "one", "two")
+
+			next, cmd := m.Update(tc.open)
+			m = next.(model)
+			if m.mode != modeEdit {
+				t.Fatalf("%s did not open the editor, mode = %v", tc.name, m.mode)
+			}
+			if released, _ := holdsMouse(cmd); !released {
+				t.Error("opening the editor did not release the mouse")
+			}
+
+			next, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			if next.(model).mode != modeList {
+				t.Fatal("esc did not leave the editor")
+			}
+			if _, taken := holdsMouse(cmd); !taken {
+				t.Error("leaving the editor did not take the mouse back")
+			}
+		})
+	}
+}
+
+// Every mode that can put a stray rune on screen, or has nothing to aim at,
+// must hand the mouse back.
+func TestOnlyTheNoteListHoldsTheMouse(t *testing.T) {
+	for _, tc := range []struct {
+		mode mode
+		want bool
+		why  string
+	}{
+		{modeList, true, "the note list has two panes to aim at"},
+		{modeSearch, true, "search still shows the list"},
+		{modeConfirm, true, "a confirmation is drawn over the list"},
+		{modeEdit, false, "stray runes would be typed into the note"},
+		{modeRaw, false, "this view exists to be selected and copied"},
+		{modeTrash, false, "nothing to aim at"},
+		{modeHelp, false, "nothing to aim at"},
+	} {
+		if got := mouseWanted(tc.mode); got != tc.want {
+			t.Errorf("mouseWanted(%v) = %v, want %v — %s", tc.mode, got, tc.want, tc.why)
+		}
 	}
 }
