@@ -261,7 +261,7 @@ func (m *model) renderPreview() {
 	}
 
 	body := stripDerivedTitle(n.Content, n.Title)
-	out, err := m.renderer.Render(separateListGroups(hideLinkTargets(body)))
+	out, err := m.renderer.Render(separateListGroups(hideLinkTargets(attachmentChips(body))))
 	if err != nil {
 		m.preview.SetContent(n.Content)
 		return
@@ -398,7 +398,7 @@ func (m *model) renderDraft() {
 		m.draft.SetContent(content)
 		return
 	}
-	out, err := r.Render(separateListGroups(hideLinkTargets(content)))
+	out, err := r.Render(separateListGroups(hideLinkTargets(attachmentChips(content))))
 	if err != nil {
 		m.draft.SetContent(content)
 		return
@@ -642,7 +642,7 @@ func (m *model) openLink() tea.Cmd {
 	if m.linkCursor >= len(links) {
 		m.linkCursor = 0
 	}
-	url := links[m.linkCursor]
+	url := m.resolveTarget(links[m.linkCursor])
 	openBrowser(url)
 
 	msg := "Opened " + url

@@ -148,3 +148,53 @@ func TestPastingIntoTheTitleIsNotAnImport(t *testing.T) {
 		t.Errorf("title = %q, want the path pasted as text", got)
 	}
 }
+
+func TestAttachmentChipsReplaceTheImage(t *testing.T) {
+	md := "before\n\n![holiday photo.png](attachments/8f3a91c2d4e5f607.png)\n\nafter"
+	got := attachmentChips(md)
+	if !strings.Contains(got, "[img holiday photo.png]") {
+		t.Errorf("got %q, want a chip naming the file", got)
+	}
+	if strings.Contains(got, "attachments/8f3a91c2d4e5f607.png") {
+		t.Errorf("got %q, want the reference replaced", got)
+	}
+}
+
+func TestAttachmentChipsNameNonImagesToo(t *testing.T) {
+	md := "[report.pdf](attachments/2b7c0419aa3d1e88.pdf)"
+	got := attachmentChips(md)
+	if !strings.Contains(got, "[file report.pdf]") {
+		t.Errorf("got %q, want a chip naming the file", got)
+	}
+}
+
+func TestAttachmentChipsLeaveEverythingElseAlone(t *testing.T) {
+	for _, md := range []string{
+		"![a remote picture](https://example.com/x.png)",
+		"[a link](https://example.com)",
+		"plain prose about attachments/ and nothing else",
+		"![short](attachments/8f3a91.png)",
+	} {
+		if got := attachmentChips(md); got != md {
+			t.Errorf("attachmentChips(%q) = %q, want it unchanged", md, got)
+		}
+	}
+}
+
+func TestOpeningAnAttachmentUsesItsRealPath(t *testing.T) {
+	// The note says "attachments/x.png", which means nothing to xdg-open.
+	m, st := newTestModel(t)
+	ref, err := st.Attachments().Add("shot.png", strings.NewReader("\x89PNG\r\n\x1a\nx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := m.resolveTarget("attachments/" + ref.Base())
+	want := filepath.Join(st.Attachments().Dir(), ref.Base())
+	if got != want {
+		t.Errorf("resolveTarget = %q, want %q", got, want)
+	}
+	if u := m.resolveTarget("https://example.com"); u != "https://example.com" {
+		t.Errorf("a URL was rewritten to %q", u)
+	}
+}
