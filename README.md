@@ -318,7 +318,7 @@ Search matches both titles and note bodies, and ignores case.
 
 | Key | Does |
 | --- | --- |
-| `o` | Open a link from this note in your browser |
+| `o` | Open a link, image or attached file from this note |
 
 Write links as `[some text](https://example.com)`. The preview shows only *some text* —
 the URL stays hidden, like it would in a browser.

@@ -31,7 +31,7 @@ func (m model) helpLine() string {
 	case modeHelp:
 		return "↑/↓ scroll   esc close"
 	default:
-		return "w/s note  j/k scroll  ↵ edit  n new  / search  R source  o link  d trash  W web  ? help  q quit"
+		return "w/s note  j/k scroll  ↵ edit  n new  / search  R source  o open  d trash  W web  ? help  q quit"
 	}
 }
 
@@ -114,8 +114,9 @@ const helpText = `
     so a digit never reaches a program running inside one.
 
   Other
-    o            open a link from this note (again for the next one).
-                 The links are real terminal hyperlinks, but while the app is
+    o            open a link, image or attached file from this note, in
+                 whatever your system uses for it (again for the next one).
+                 Links are real terminal hyperlinks too, but while the app is
                  holding the mouse most terminals send the click here instead
                  of opening it, so o is the dependable route
     d            move to trash (asks first)

@@ -637,7 +637,7 @@ func (m *model) openLink() tea.Cmd {
 	}
 	links := Links(n.Content)
 	if len(links) == 0 {
-		return flash("No links in this note")
+		return flash("Nothing to open in this note")
 	}
 	if m.linkCursor >= len(links) {
 		m.linkCursor = 0

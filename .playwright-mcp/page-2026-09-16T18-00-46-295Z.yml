@@ -1,0 +1,20 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Notes" [level=1] [ref=e10]
+        - button "Toggle theme" [ref=e11]
+      - generic [ref=e12]:
+        - button "New note" [ref=e13]
+        - textbox "Search notes…" [ref=e15]
+      - generic [ref=e16]: No notes yet.
+      - generic [ref=e23]:
+        - generic [ref=e24]: 0 notes
+        - button "Open the trash" [ref=e26]
+    - main [ref=e27]:
+      - generic [ref=e29]:
+        - generic [ref=e34]:
+          - paragraph [ref=e35]: No note open
+          - paragraph [ref=e36]: Pick one from the sidebar, or start writing something new.
+        - button "New note" [ref=e37]
+  - region "Notifications alt+T"

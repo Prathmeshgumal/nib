@@ -143,3 +143,58 @@ func TestMarkdownAndRefsAgree(t *testing.T) {
 		}
 	}
 }
+
+func TestDescribeKeepsTheNameForContainerFormats(t *testing.T) {
+	// A .docx is a zip, and so is every other Office file, every .odt and
+	// every .epub. Sniffing the bytes says "zip" and stops there, which is how
+	// a Word document ends up opening in an archive manager.
+	zip := []byte("PK\x03\x04\x14\x00\x06\x00 and then some bytes")
+
+	for _, c := range []struct {
+		name string
+		want string
+	}{
+		{"report.docx", ".docx"},
+		{"budget.xlsx", ".xlsx"},
+		{"deck.pptx", ".pptx"},
+		{"book.epub", ".epub"},
+		{"notes.odt", ".odt"},
+		{"archive.zip", ".zip"}, // genuinely a zip, and says so
+		{"mystery", ".zip"},     // nothing to go on: fall back to the type
+	} {
+		mime, ext := describe(zip, c.name)
+		if mime != "application/zip" {
+			t.Errorf("%s: mime = %q, want application/zip", c.name, mime)
+		}
+		if ext != c.want {
+			t.Errorf("%s: ext = %q, want %q", c.name, ext, c.want)
+		}
+	}
+}
+
+func TestDescribeKeepsTheNameForTextFormats(t *testing.T) {
+	// text/plain is the same kind of catch-all: markdown, CSV, JSON and source
+	// code are all "plain text" to a sniffer, and all open in different things.
+	text := []byte("a,b,c\n1,2,3\n")
+
+	for _, c := range []struct{ name, want string }{
+		{"data.csv", ".csv"},
+		{"notes.md", ".md"},
+		{"config.json", ".json"},
+		{"README", ".txt"}, // no extension to keep
+		{"plain.txt", ".txt"},
+	} {
+		if _, ext := describe(text, c.name); ext != c.want {
+			t.Errorf("%s: ext = %q, want %q", c.name, ext, c.want)
+		}
+	}
+}
+
+func TestDescribeStillTrustsTheBytesForRealFormats(t *testing.T) {
+	// A PNG named .jpg is still a PNG: for a format whose bytes identify it,
+	// the contents win and the name is ignored.
+	png := []byte("\x89PNG\r\n\x1a\nnot really")
+	if mime, ext := describe(png, "photo.jpg"); mime != "image/png" || ext != ".png" {
+		t.Errorf("describe = %q, %q; want image/png, .png", mime, ext)
+	}
+}
