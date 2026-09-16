@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Prathmeshgumal/nib/internal/attach"
 	_ "modernc.org/sqlite" // pure-Go driver: no cgo, no system libraries
 )
 
@@ -23,8 +24,9 @@ type Note struct {
 }
 
 type Store struct {
-	db   *sql.DB
-	Path string
+	db     *sql.DB
+	Path   string
+	attach *attach.Store
 }
 
 var ErrNotFound = errors.New("note not found")
@@ -64,11 +66,57 @@ func Open(path string) (*Store, error) {
 		!strings.Contains(err.Error(), "duplicate column") {
 		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
-	st := &Store{db: db, Path: path}
+	// Attachments live beside the database rather than in a fixed place, so
+	// pointing --db somewhere else takes the files along and the relative
+	// links inside the notes keep resolving.
+	at, err := attach.Open(filepath.Join(filepath.Dir(path), "attachments"))
+	if err != nil {
+		return nil, err
+	}
+
+	st := &Store{db: db, Path: path, attach: at}
 	if err := st.purgeExpiredTrash(); err != nil {
 		return nil, err
 	}
+	if _, err := at.PurgeExpired(TrashRetention); err != nil {
+		return nil, err
+	}
+	if _, _, err := st.SweepAttachments(); err != nil {
+		return nil, err
+	}
 	return st, nil
+}
+
+// Attachments is the store for the files the notes refer to.
+func (s *Store) Attachments() *attach.Store { return s.attach }
+
+// SweepAttachments reconciles the attachments directory against the notes.
+//
+// Deleted notes count. A note in the trash is recoverable for TrashRetention,
+// so its files have to outlive it by at least as long, or restoring a note
+// hands back broken images. Gathering the set here rather than in each caller
+// is what stops anyone forgetting that.
+func (s *Store) SweepAttachments() (trashed, restored int, err error) {
+	rows, err := s.db.Query(`SELECT content FROM notes`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("reading note contents: %w", err)
+	}
+	defer rows.Close()
+
+	referenced := map[string]struct{}{}
+	for rows.Next() {
+		var content string
+		if err := rows.Scan(&content); err != nil {
+			return 0, 0, err
+		}
+		for _, id := range attach.Refs(content) {
+			referenced[id] = struct{}{}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, err
+	}
+	return s.attach.Sweep(referenced)
 }
 
 func (s *Store) Close() error { return s.db.Close() }
