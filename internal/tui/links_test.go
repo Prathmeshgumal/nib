@@ -6,7 +6,9 @@ import (
 	"testing"
 )
 
-func TestHideLinkTargets(t *testing.T) {
+// The renderer is handed markdown whose destinations have been replaced with a
+// bare anchor, so the preview shows link text the way a browser does.
+func TestPreparedMarkdownHidesDestinations(t *testing.T) {
 	for _, tc := range []struct{ name, in, want string }{
 		{
 			name: "inline link keeps its text",
@@ -40,14 +42,15 @@ func TestHideLinkTargets(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := hideLinkTargets(tc.in); got != tc.want {
+			var m model
+			if got, _ := m.prepareForRender(tc.in); got != tc.want {
 				t.Errorf("got  %q\nwant %q", got, tc.want)
 			}
 		})
 	}
 }
 
-func TestLinks(t *testing.T) {
+func TestOpenableInANote(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		in   string
@@ -90,7 +93,12 @@ func TestLinks(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := Links(tc.in); !reflect.DeepEqual(got, tc.want) {
+			var m model
+			var got []string
+			for _, target := range m.openableIn(tc.in) {
+				got = append(got, target.Open)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("got %v, want %v", got, tc.want)
 			}
 		})
@@ -99,8 +107,10 @@ func TestLinks(t *testing.T) {
 
 // The URL must not survive into what the reader sees.
 func TestRenderedPreviewHasNoURL(t *testing.T) {
+	var m model
 	md := "- [x] Solve 10 [DSA questions](https://www.codehelp.in/courses).\n"
-	out := renderToPlain(t, hideLinkTargets(md))
+	prepared, _ := m.prepareForRender(md)
+	out := renderToPlain(t, prepared)
 	if strings.Contains(out, "codehelp.in") {
 		t.Errorf("URL leaked into the preview:\n%s", out)
 	}

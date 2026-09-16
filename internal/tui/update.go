@@ -124,7 +124,6 @@ func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				// anywhere else.
 				if i := m.noteAt(msg.X, msg.Y); i >= 0 && i != m.cursor {
 					m.cursor = i
-					m.linkCursor = 0
 					m.renderPreview()
 				}
 			} else {
@@ -235,6 +234,42 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.help.GotoBottom()
 		default:
 			m.mode = modeList
+		}
+		return m, nil
+
+	case modePick:
+		switch key := msg.String(); key {
+		case "down", "j", "tab":
+			if m.pickCursor < len(m.picks)-1 {
+				m.pickCursor++
+			}
+		case "up", "k", "shift+tab":
+			if m.pickCursor > 0 {
+				m.pickCursor--
+			}
+		case "home", "g":
+			m.pickCursor = 0
+		case "end", "G":
+			m.pickCursor = len(m.picks) - 1
+		case "enter":
+			t := m.picks[m.pickCursor]
+			m.mode = modeList
+			m.picks = nil
+			return m, m.open(t)
+		case "esc", "q", "ctrl+c":
+			m.mode = modeList
+			m.picks = nil
+		default:
+			// A number opens that row outright, which is the fastest way
+			// through a short list.
+			if len(key) == 1 && key[0] >= '1' && key[0] <= '9' {
+				if i := int(key[0] - '1'); i < len(m.picks) {
+					t := m.picks[i]
+					m.mode = modeList
+					m.picks = nil
+					return m, m.open(t)
+				}
+			}
 		}
 		return m, nil
 
@@ -453,7 +488,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				"Move \""+truncate(n.Title, 40)+"\" to the trash?")
 		}
 	case "o":
-		return m, m.openLink()
+		return m, m.openTargets()
 	case "W":
 		return m, m.toggleWeb()
 	case "u":

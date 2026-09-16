@@ -31,7 +31,7 @@ func openable(url string) bool {
 // linkifyRendered turns tagged link text into clickable hyperlinks, and does
 // the same for URLs written out in full. targets holds the destinations in the
 // order their links appear, which is the order the markers appear too.
-func linkifyRendered(rendered string, targets []string) string {
+func linkifyRendered(rendered string, targets []Target) string {
 	out := linkifyBareURLs(rendered)
 
 	var b strings.Builder
@@ -52,8 +52,8 @@ func linkifyRendered(rendered string, targets []string) string {
 		b.WriteString(rest[:start])
 		text := rest[start+len(linkOpenMarker) : end]
 
-		if i < len(targets) && openable(targets[i]) {
-			b.WriteString(hyperlink(targets[i], text, i+1))
+		if i < len(targets) && targets[i].clickable() {
+			b.WriteString(hyperlink(targets[i].hyperlinkURL(), text, i+1))
 		} else {
 			b.WriteString(text) // an anchor, or a link we have no target for
 		}

@@ -150,33 +150,52 @@ func TestPastingIntoTheTitleIsNotAnImport(t *testing.T) {
 }
 
 func TestAttachmentChipsReplaceTheImage(t *testing.T) {
+	var m model
 	md := "before\n\n![holiday photo.png](attachments/8f3a91c2d4e5f607.png)\n\nafter"
-	got := attachmentChips(md)
+	got, targets := m.prepareForRender(md)
 	if !strings.Contains(got, "[img holiday photo.png]") {
 		t.Errorf("got %q, want a chip naming the file", got)
 	}
 	if strings.Contains(got, "attachments/8f3a91c2d4e5f607.png") {
 		t.Errorf("got %q, want the reference replaced", got)
 	}
+	if len(targets) != 1 || targets[0].Kind != targetImage {
+		t.Errorf("targets = %v, want one image target", targets)
+	}
 }
 
 func TestAttachmentChipsNameNonImagesToo(t *testing.T) {
-	md := "[report.pdf](attachments/2b7c0419aa3d1e88.pdf)"
-	got := attachmentChips(md)
+	var m model
+	got, targets := m.prepareForRender("[report.pdf](attachments/2b7c0419aa3d1e88.pdf)")
 	if !strings.Contains(got, "[file report.pdf]") {
 		t.Errorf("got %q, want a chip naming the file", got)
+	}
+	if len(targets) != 1 || targets[0].Kind != targetFile {
+		t.Errorf("targets = %v, want one file target", targets)
+	}
+}
+
+// A chip is written as a link so the renderer tags it, which is what makes it
+// clickable. The tag is the only thing that should be added.
+func TestAttachmentChipsAreWrittenAsLinks(t *testing.T) {
+	var m model
+	got, _ := m.prepareForRender("[report.pdf](attachments/2b7c0419aa3d1e88.pdf)")
+	if got != "[file report.pdf](#)" {
+		t.Errorf("got %q, want the chip written as a link", got)
 	}
 }
 
 func TestAttachmentChipsLeaveEverythingElseAlone(t *testing.T) {
+	var m model
 	for _, md := range []string{
 		"![a remote picture](https://example.com/x.png)",
 		"[a link](https://example.com)",
 		"plain prose about attachments/ and nothing else",
 		"![short](attachments/8f3a91.png)",
 	} {
-		if got := attachmentChips(md); got != md {
-			t.Errorf("attachmentChips(%q) = %q, want it unchanged", md, got)
+		got, _ := m.prepareForRender(md)
+		if strings.Contains(got, "[file ") || strings.Contains(got, "[img ") {
+			t.Errorf("prepareForRender(%q) = %q, want no chip", md, got)
 		}
 	}
 }
