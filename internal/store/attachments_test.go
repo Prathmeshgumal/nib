@@ -1,6 +1,8 @@
 package store
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -91,4 +93,56 @@ func TestSweepTrashesWhatNothingUses(t *testing.T) {
 		return
 	}
 	f.Close()
+}
+
+func TestSnapshotsAreNamedForTheProgram(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nib.db")
+	st, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Create("Something", "worth backing up"); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+
+	dest, err := Snapshot(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := filepath.Base(dest); !strings.HasPrefix(got, "nib-") {
+		t.Errorf("snapshot named %q, want it to start with nib-", got)
+	}
+}
+
+func TestSnapshotsSkipAttachments(t *testing.T) {
+	// An attachment is named after a hash of its own contents, so it can never
+	// go stale and there is nothing to keep ten versions of.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nib.db")
+	st, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Attachments().Add("shot.png", strings.NewReader("\x89PNG\r\n\x1a\nx")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Create("A note", "text"); err != nil {
+		t.Fatal(err)
+	}
+	st.Close()
+
+	if _, err := Snapshot(path); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, "backups"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) != ".db" {
+			t.Errorf("backups holds %q, want only database copies", e.Name())
+		}
+	}
 }

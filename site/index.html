@@ -434,7 +434,7 @@
     <a class="mark" href="#top"><i>$</i> nib</a>
     <div class="fill"></div>
     <div class="navlinks">
-      <a href="#file">Keys</a><a href="#aim">Aim</a><a href="#lists">Lists</a>
+      <a href="#file">Keys</a><a href="#aim">Aim</a><a href="#lists">Lists</a><a href="#files">Files</a>
       <a href="#speed">Speed</a><a href="#cost">Cost</a>
       <a href="#custody">Custody</a><a href="#browser">Browser</a><a href="#api">API</a>
     </div>
@@ -614,10 +614,66 @@
   </section>
 
   <!-- 04 ─────────────────────────────────────────────── -->
+  <section id="files">
+    <div class="wrap">
+      <div class="head">
+        <span class="no">[ 04 ]</span>
+        <div>
+          <span class="sr"><span class="sr-in slab sec">Drop a file</span></span>
+          <span class="sr yell"><span class="sr-in slab sec on-yell">into the note</span></span>
+        </div>
+      </div>
+      <div class="split">
+        <div>
+          <p class="body">
+            In the browser, drag a picture onto the editor — or paste one, so a
+            screenshot goes from <code class="i">PrtSc</code> to
+            <code class="i">Ctrl+V</code> without ever becoming a file you have
+            to name and then find again.
+          </p>
+          <p class="body">
+            In the terminal, drag the file onto the window. A terminal has no
+            drag-and-drop of its own: it pastes the file's <em>path</em>. nib
+            notices a paste that names only files that exist and attaches them
+            instead. Anything else pastes as the text it is.
+          </p>
+          <p class="body">
+            Every file is named after a hash of its own contents, so the same
+            picture in three notes is stored once. Remove the line and the file
+            waits thirty days in a trash before it goes — the same grace a
+            deleted note gets.
+          </p>
+          <p class="body" style="color:var(--faint)">
+            The preview names a picture rather than drawing it. Terminals that
+            can show images need the kitty, iTerm2 or sixel protocol, and most
+            have none of them — so <code class="i">o</code> opens the real file
+            in your own viewer.
+          </p>
+        </div>
+        <div>
+          <div class="term">
+            <div class="tbar">
+              <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+              <span>nib</span>
+            </div>
+            <pre><span class="th"># drag holiday.png onto the window</span>
+
+<span class="ty">!</span>[holiday.png](<span class="tl">attachments/8f3a91c2d4e5f607.png</span>)
+
+<span class="th">~/.local/share/nib/</span>
+<span class="th">  nib.db</span>
+<span class="th">  attachments/</span><span class="tl">8f3a91c2d4e5f607.png</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 ─────────────────────────────────────────────── -->
   <section id="speed" class="dark">
     <div class="wrap">
       <div class="head">
-        <span class="no" style="color:#64769a">[ 04 ]</span>
+        <span class="no" style="color:#64769a">[ 05 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Nothing to</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">boot first</span></span>
@@ -653,7 +709,7 @@
   <section id="cost">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 05 ]</span>
+        <span class="no">[ 06 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">What it costs</span></span>
           <span class="sr blue"><span class="sr-in slab sec on-blue">your machine</span></span>
@@ -719,7 +775,7 @@
   <section id="custody">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 06 ]</span>
+        <span class="no">[ 07 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Chain of</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">custody</span></span>
@@ -728,14 +784,16 @@
       <div class="split">
         <div>
           <p class="body">
-            Every note lives in one SQLite file on your own disk. Copy it and you
-            have copied everything — there is no export, because there is nothing
-            to export it from.
+            Every note lives in one SQLite file on your own disk, with any files
+            you attached in a folder beside it. Copy that folder and you have
+            copied everything — there is no export, because there is nothing to
+            export it from.
           </p>
           <p class="body">
             Nothing is destroyed in a hurry either. A deleted note sits in a trash
-            for thirty days, and the database is snapshotted every time the app
-            starts, keeping the last ten.
+            for thirty days, an attachment nothing refers to gets the same thirty,
+            and the database is snapshotted every time the app starts, keeping the
+            last ten.
           </p>
           <p class="body">
             The browser interface binds to <code class="i">127.0.0.1</code>, so
@@ -762,7 +820,7 @@
   <section id="browser">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 07 ]</span>
+        <span class="no">[ 08 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Same notes,</span></span>
           <span class="sr blue"><span class="sr-in slab sec on-blue">in a browser</span></span>
@@ -843,7 +901,7 @@
   <section id="api" class="dark">
     <div class="wrap">
       <div class="head">
-        <span class="no" style="color:#64769a">[ 08 ]</span>
+        <span class="no" style="color:#64769a">[ 09 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Your notes,</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">scriptable</span></span>

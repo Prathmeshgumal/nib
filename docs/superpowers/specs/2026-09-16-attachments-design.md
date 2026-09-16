@@ -210,10 +210,25 @@ system viewer through the existing opener in `internal/tui/model.go`.
 
 Both follow directly from putting bytes on disk, and both are in scope.
 
-**`nib snapshot` stops being a backup.** It dumps SQL, which will not contain
-the images. It becomes `nib-<timestamp>.tar.gz` holding `notes.sql` and
-`attachments/`. This is a breaking change to a documented command and must be
-called out in the release notes.
+**~~`nib snapshot` stops being a backup.~~ Reversed while implementing PR D.**
+
+This was written believing `nib snapshot` was a user-facing command that dumped
+SQL. It is not. `store.Snapshot` is an automatic copy of the database file made
+on every launch, keeping the last ten, and there is no subcommand at all.
+
+That changes the answer. Snapshots stay database-only, deliberately:
+
+- A snapshot exists to hand back an earlier version of something that changes.
+  An attachment cannot change — it is named after a hash of its own contents,
+  so a copy of it from an hour ago is the same bytes as the file itself.
+- Including them would mean up to ten duplicates of every picture, rewritten on
+  every launch, to protect bytes that cannot go stale.
+
+What attachments need is not to be lost, and the thirty-day trash is what does
+that. `Snapshot` carries a comment saying so, and two tests pin it: one that
+the backups directory holds only `.db` files, one that snapshots are named for
+the program. The filename was still `notes-*.db` from before the rename; PR D
+fixes that to `nib-*.db`.
 
 **The one-file promise needs rewording.** The README, the site's custody
 section, and `--help` all say the notes are a single SQLite file. They become a

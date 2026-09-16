@@ -36,7 +36,7 @@ preview. Both stay open at once, backed by the same file.
 - [The idea](#the-idea)
 - [Install](#install) · [Platforms](#platforms)
 - [Starting it](#starting-it)
-- [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [aiming](#the-arrows-and-the-wheel-follow-your-last-click) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [deleting](#deleting-and-undoing-it) · [the browser](#the-web-ui-from-the-terminal)
+- [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [aiming](#the-arrows-and-the-wheel-follow-your-last-click) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [images and files](#images-and-files) · [deleting](#deleting-and-undoing-it) · [the browser](#the-web-ui-from-the-terminal)
 - [The web UI](#the-web-ui)
 - [Writing notes](#writing-notes) — the Markdown it understands
 - [Your notes on disk](#your-notes-on-disk)
@@ -334,6 +334,37 @@ instead of opening the link — which is why `o` is the route to rely on.
 URLs written out in full are clickable as well — they have no text to hide behind, so
 they stay visible. Link syntax inside a code block stays literal.
 
+### Images and files
+
+**Drag a file onto the terminal while you are writing a note.** It gets attached.
+
+That works because of what a terminal actually does with a dropped file: it has no
+drag-and-drop of its own, so the emulator pastes the file's *path* as text. `nib` notices
+a paste that names only files that exist, stores them, and writes a reference in place of
+the path. A paste that is anything else — ordinary text, a URL, a path to something that
+is not there — pastes exactly as it always has.
+
+Drop several files at once and you get a line for each. Images are written as
+`![name](attachments/…)` and everything else as a plain link, so a PDF or a zip is just
+as welcome as a screenshot.
+
+**The preview names the file rather than drawing it.** An image appears as
+`[img holiday.png]`. Terminals that can display pictures need the kitty, iTerm2 or sixel
+protocol, and most terminals have none of them — so rather than guess, `nib` shows the
+name and lets you open the real thing with `o`, in whatever viewer your system uses.
+
+In the [web UI](#the-web-ui) you can drag a file straight onto the editor, or paste one:
+a screenshot goes from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name.
+
+Files are capped at **50 MB** each. Two notes using the same picture store it once —
+every file is named after a hash of its own contents, so an identical file is recognised
+as one you already have.
+
+**Removing the line does not delete the file straight away.** It moves to a trash beside
+your notes and is cleared after 30 days, the same as a deleted note. Put the line back
+within the month — an undo, or restoring the note from the trash — and the file comes
+back with it.
+
 ### Deleting, and undoing it
 
 | Key | Does |
@@ -382,6 +413,10 @@ link, bulleted list, numbered list, task list, horizontal rule. Every button wor
 your selection, and pressing it again toggles the formatting off.
 
 **Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save.
+
+**Drag a file onto the editor** and it is attached — or paste one, so a screenshot goes
+from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
+Images show in the Preview tab. See [images and files](#images-and-files).
 
 **Write / Preview tabs** while editing, and a clean read-only view after saving with an
 Edit button to go back. There's a search box, a light/dark toggle that follows your system
@@ -460,16 +495,21 @@ alone, because splitting one would restart it at 1.
 
 ```
 ~/.local/share/nib/nib.db          your notes, one SQLite file
-~/.local/share/nib/backups/        automatic snapshots, the last 10
+~/.local/share/nib/attachments/    the files your notes refer to
+~/.local/share/nib/backups/        automatic snapshots of the database, the last 10
 ```
 
-Copy that one file and you have copied everything.
+Copy that directory and you have copied everything. The notes are one SQLite file; the
+pictures and documents sit beside it, each named after a hash of its own contents.
 
 **Snapshots happen on their own.** Every time `nib` starts, it copies the database into
-`backups/` and keeps the most recent **10**. To go back to one:
+`backups/` and keeps the most recent **10**. Attachments are not copied: a snapshot
+exists to give you back an earlier version of something that changes, and an attachment
+never changes — it is named after its own contents. What protects those is the 30-day
+trash. To go back to a snapshot:
 
 ```bash
-cp ~/.local/share/nib/backups/notes-20260913-140331.db \
+cp ~/.local/share/nib/backups/nib-20260913-140331.db \
    ~/.local/share/nib/nib.db
 ```
 
@@ -501,8 +541,21 @@ Available whenever the web UI is running, for scripting against your notes.
 | `POST` | `/api/trash/:id` | Restore a note |
 | `DELETE` | `/api/trash/:id` | Delete a note for good |
 | `DELETE` | `/api/trash` | Empty the trash |
+| `POST` | `/api/attachments` | Store a file — `multipart/form-data`, field `file` |
+| `GET` | `/attachments/:name` | Fetch a stored file |
 
 `title` may be omitted or empty; it's derived from the first line.
+
+`POST /api/attachments` answers with the file's id, name, type, size, and the Markdown
+line to put in a note — so a script never has to know how a reference is spelled:
+
+```bash
+curl -F file=@holiday.png localhost:4321/api/attachments
+# {"id":"8f3a91c2d4e5f607","markdown":"![holiday.png](attachments/8f3a91c2d4e5f607.png)",...}
+```
+
+Serving lives at `/attachments/`, not under `/api/`, because that is the path the
+Markdown inside a note already spells.
 
 The trash routes only act on trashed notes: a live note returns 404, so nothing can be
 destroyed without being trashed first.
