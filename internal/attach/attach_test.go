@@ -295,3 +295,30 @@ func toSet(ids []string) map[string]struct{} {
 	}
 	return m
 }
+
+func TestReadFallsBackToTheTrash(t *testing.T) {
+	// A note being edited elsewhere can reference a file that a sweep has
+	// already moved to the trash. Asking for it by its content hash is proof
+	// enough that a reference exists, so it must still be served.
+	s := newTestStore(t)
+	ref, err := s.Add("hello.txt", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Sweep(map[string]struct{}{}); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := s.Read(ref.Base())
+	if err != nil {
+		t.Fatalf("reading a trashed attachment: %v", err)
+	}
+	defer f.Close()
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello" {
+		t.Errorf("read %q, want %q", got, "hello")
+	}
+}

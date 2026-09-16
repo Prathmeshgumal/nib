@@ -132,16 +132,23 @@ var storedName = regexp.MustCompile(`^[0-9a-f]{16}\.[a-z0-9]{1,8}$`)
 func validBase(base string) bool { return storedName.MatchString(base) }
 
 // Read opens a stored attachment by its name on disk.
+//
+// A file in the trash is still served. A caller naming a file by the hash of
+// its contents is holding a reference to it, and a sweep in another process
+// may have moved it a moment ago; refusing would turn that race into a broken
+// image on the page.
 func (s *Store) Read(base string) (*os.File, error) {
 	if !validBase(base) {
 		return nil, fmt.Errorf("%q: %w", base, ErrBadName)
 	}
-	f, err := os.Open(filepath.Join(s.dir, base))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("%s: %w", base, ErrNotFound)
+	for _, dir := range []string{s.dir, filepath.Join(s.dir, trashDir)} {
+		f, err := os.Open(filepath.Join(dir, base))
+		if err == nil {
+			return f, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-	return f, nil
+	return nil, fmt.Errorf("%s: %w", base, ErrNotFound)
 }
