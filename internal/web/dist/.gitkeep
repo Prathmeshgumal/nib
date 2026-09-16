@@ -1,0 +1,5 @@
+The web UI is built into this directory by ./build.sh and is not committed.
+
+This file is committed so that `go:embed all:dist` has something to match,
+which means `go build` and `go test` work on a fresh clone without having to
+build the web bundle first. Without it the package does not compile at all.
