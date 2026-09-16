@@ -4,8 +4,11 @@
 package attach
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -48,3 +51,68 @@ func Open(dir string) (*Store, error) {
 
 // Dir is the directory the store owns.
 func (s *Store) Dir() string { return s.dir }
+
+// Add copies the bytes in and returns a reference to them. Adding the same
+// bytes twice returns the same id and writes nothing the second time.
+func (s *Store) Add(name string, r io.Reader) (Ref, error) {
+	tmp, err := os.CreateTemp(filepath.Join(s.dir, tmpDir), "incoming-*")
+	if err != nil {
+		return Ref{}, fmt.Errorf("opening a temporary file: %w", err)
+	}
+	// Removing a file that was renamed away fails harmlessly, so this covers
+	// every path out of the function without a flag to track success.
+	defer func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	}()
+
+	sum := sha256.New()
+	// The first bytes decide the content type, so keep them as they go past.
+	head := &headBuffer{limit: 512}
+	dst := io.MultiWriter(tmp, sum, head)
+
+	size, err := io.Copy(dst, r)
+	if err != nil {
+		return Ref{}, fmt.Errorf("reading the file: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		return Ref{}, fmt.Errorf("flushing the file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return Ref{}, fmt.Errorf("closing the file: %w", err)
+	}
+
+	mimeType, ext := describe(head.buf, name)
+	ref := Ref{
+		ID:   hex.EncodeToString(sum.Sum(nil))[:16],
+		Name: name,
+		Ext:  ext,
+		MIME: mimeType,
+		Size: size,
+	}
+
+	final := filepath.Join(s.dir, ref.Base())
+	if _, err := os.Stat(final); err == nil {
+		return ref, nil // these exact bytes are already here
+	}
+	if err := os.Rename(tmp.Name(), final); err != nil {
+		return Ref{}, fmt.Errorf("storing the file: %w", err)
+	}
+	return ref, nil
+}
+
+// headBuffer keeps the first limit bytes written to it and discards the rest,
+// so the content sniffer can see the start of a file of any size without
+// holding the whole thing in memory. It is a pointer receiver because the
+// buffer has to survive between writes.
+type headBuffer struct {
+	buf   []byte
+	limit int
+}
+
+func (h *headBuffer) Write(p []byte) (int, error) {
+	if room := h.limit - len(h.buf); room > 0 {
+		h.buf = append(h.buf, p[:min(len(p), room)]...)
+	}
+	return len(p), nil
+}
