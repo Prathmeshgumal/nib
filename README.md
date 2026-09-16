@@ -192,9 +192,14 @@ so there is always something on screen saying which it is. Clicking a title open
 one". Whatever the mouse has been doing, those four keys do one thing each.
 
 **The cost of holding the mouse.** For the app to know where you clicked, the terminal
-has to hand it the mouse, which means **selecting text needs `shift` held down** while
-you drag. The one place it does not is `R`, the source view, where the app gives the
-mouse back precisely so that copying is unencumbered.
+has to hand it the mouse, so **selecting text on this screen needs `shift` held down**
+while you drag.
+
+The app only holds it here, where there is something to aim at. The editor, the trash,
+the help and `R` all give the mouse straight back, so selecting in those is normal. That
+is not only about copying: while the app holds the mouse the terminal sends a burst of
+escape codes for every scroll, and a fast scroll can overrun the parser and spill the
+remainder as literal text — which in the editor would be typed into your note.
 
 ### Copying a note
 

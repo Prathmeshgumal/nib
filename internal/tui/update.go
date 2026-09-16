@@ -6,7 +6,36 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// mouseWanted reports whether a mode has anything to do with the mouse.
+//
+// Only the note list is divided into panes to aim at. Everywhere else the app
+// must hand the mouse back, and not merely ignore it: while the app holds it,
+// the terminal keeps sending a burst of escape sequences for every scroll, and
+// a fast scroll overruns the input parser, which then spills the remainder as
+// literal text. In the editor that text lands in the note you are writing.
+func mouseWanted(m mode) bool {
+	return m == modeList || m == modeSearch || m == modeConfirm
+}
+
+// Update runs the app's own update, then takes or releases the mouse if that
+// changed which mode we are in. Doing it here rather than at each transition
+// means a new mode cannot forget to.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	before := m.mode
+	updated, cmd := m.update(msg)
+	next := updated.(model)
+
+	if was, now := mouseWanted(before), mouseWanted(next.mode); was != now {
+		if now {
+			cmd = tea.Batch(cmd, tea.EnableMouseCellMotion)
+		} else {
+			cmd = tea.Batch(cmd, tea.DisableMouse)
+		}
+	}
+	return next, cmd
+}
+
+func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -167,7 +196,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc", "q", "R":
 			m.mode = modeList
-			return m, tea.EnableMouseCellMotion
 		case "down", "j":
 			m.rawView.LineDown(1)
 		case "up", "k":
@@ -394,10 +422,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeRaw
 			m.rawView.SetContent(n.Content)
 			m.rawView.GotoTop()
-			// Hand the mouse back to the terminal. This view exists to be
-			// selected and copied, and an app holding the mouse would make
-			// that need a modifier held down.
-			return m, tea.DisableMouse
 		}
 	case "enter":
 		if n := m.selected(); n != nil {
