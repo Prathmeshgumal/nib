@@ -72,7 +72,7 @@ jobs:
             ## Install
 
             ```bash
-            curl -L https://github.com/Prathmeshgumal/Notes/releases/download/${{ github.ref_name }}/nib-linux-amd64 -o nib
+            curl -L https://github.com/Prathmeshgumal/nib/releases/download/${{ github.ref_name }}/nib-linux-amd64 -o nib
             chmod +x nib
             ./nib
             ```
