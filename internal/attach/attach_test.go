@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -225,4 +226,72 @@ func TestReadOfAMissingFile(t *testing.T) {
 	if _, err := s.Read("8f3a91c2d4e5f607.png"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
+}
+
+func TestTheLifeOfAnAttachment(t *testing.T) {
+	s := newTestStore(t)
+
+	// Someone drops a picture into a note.
+	ref, err := s.Add("holiday.png", strings.NewReader("\x89PNG\r\n\x1a\npretend this is a picture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ref.MIME != "image/png" || ref.Ext != ".png" {
+		t.Fatalf("stored as %s%s, want an image/png .png", ref.MIME, ref.Ext)
+	}
+
+	note := "# Holiday\n\n" + ref.Markdown() + "\n"
+	ids := Refs(note)
+	if len(ids) != 1 || ids[0] != ref.ID {
+		t.Fatalf("Refs(note) = %v, want [%s]", ids, ref.ID)
+	}
+
+	// While the note refers to it, sweeping changes nothing.
+	referenced := map[string]struct{}{ref.ID: {}}
+	if gone, back, err := s.Sweep(referenced); err != nil || gone != 0 || back != 0 {
+		t.Fatalf("Sweep while referenced = %d, %d, %v; want 0, 0, nil", gone, back, err)
+	}
+	if _, err := s.Read(ref.Base()); err != nil {
+		t.Fatalf("reading a live attachment: %v", err)
+	}
+
+	// The line is deleted. The file goes to the trash, not to nothing.
+	if gone, _, err := s.Sweep(toSet(Refs("# Holiday\n"))); err != nil || gone != 1 {
+		t.Fatalf("Sweep after removal = %d, %v; want 1, nil", gone, err)
+	}
+
+	// The edit is undone before the month is out, and the file comes back.
+	if _, back, err := s.Sweep(referenced); err != nil || back != 1 {
+		t.Fatalf("Sweep after undo = %d, %v; want 1, nil", back, err)
+	}
+	f, err := s.Read(ref.Base())
+	if err != nil {
+		t.Fatalf("reading a restored attachment: %v", err)
+	}
+	f.Close()
+
+	// This time the removal sticks, and a month passes.
+	if _, _, err := s.Sweep(toSet(Refs("# Holiday\n"))); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-40 * 24 * time.Hour)
+	if err := os.Chtimes(filepath.Join(s.Dir(), ".trash", ref.Base()), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.PurgeExpired(30 * 24 * time.Hour); err != nil || n != 1 {
+		t.Fatalf("PurgeExpired = %d, %v; want 1, nil", n, err)
+	}
+	if _, err := s.Read(ref.Base()); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound once it is really gone", err)
+	}
+}
+
+// toSet is the shape Sweep wants, built from what Refs returns. This is the
+// join every caller of Sweep will have to make.
+func toSet(ids []string) map[string]struct{} {
+	m := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		m[id] = struct{}{}
+	}
+	return m
 }
