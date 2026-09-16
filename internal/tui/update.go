@@ -238,6 +238,13 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case modePick:
+		// The picker is only ever entered with rows in it, but every branch
+		// below indexes into them, so an empty list would be a panic rather
+		// than a wrong answer.
+		if len(m.picks) == 0 {
+			m.mode = modeList
+			return m, nil
+		}
 		switch key := msg.String(); key {
 		case "down", "j", "tab":
 			if m.pickCursor < len(m.picks)-1 {

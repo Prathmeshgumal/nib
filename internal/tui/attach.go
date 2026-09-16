@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -194,11 +193,6 @@ func addFile(at *attach.Store, path string) (attach.Ref, error) {
 func plural(n int, word string) string {
 	return fmt.Sprintf("%d %s", n, word)
 }
-
-// attachmentReference matches an attachment link exactly as attach.Ref.Markdown
-// writes it, capturing the leading "!" for an image, the link text, and the
-// name on disk.
-var attachmentReference = regexp.MustCompile(`(!?)\[([^\]]*)\]\(attachments/([0-9a-f]{16}\.[a-z0-9]{1,8})\)`)
 
 // resolveTarget turns a link destination into something worth handing to the
 // system opener. An attachment is a relative path inside a directory only this

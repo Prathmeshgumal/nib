@@ -227,3 +227,22 @@ func TestMiddleTruncateKeepsBothEnds(t *testing.T) {
 		t.Errorf("middleTruncate = %q, %d runes, want 20", got, len([]rune(got)))
 	}
 }
+
+// Reaching the picker with nothing in it should not be possible. If it ever
+// becomes possible, it must not take the program down with it.
+func TestAnEmptyPickerCannotPanic(t *testing.T) {
+	m, _ := newTestModel(t)
+	m.mode = modePick
+	m.picks = nil
+
+	for _, k := range []rune{'j', 'k', 'G', 'g', '1'} {
+		m = press(m, key(k))
+	}
+	// Enter is the one that would index into the empty list.
+	m.mode = modePick
+	m.picks = nil
+	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != modeList {
+		t.Errorf("mode = %v, want it to fall back to the note view", m.mode)
+	}
+}
