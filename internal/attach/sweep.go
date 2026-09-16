@@ -74,3 +74,36 @@ func (s *Store) Sweep(referenced map[string]struct{}) (trashed, restored int, er
 // idOf is the id part of a name on disk. Only ever called on names validBase
 // has already accepted.
 func idOf(base string) string { return strings.TrimSuffix(base, filepath.Ext(base)) }
+
+// PurgeExpired deletes trashed attachments older than d. The caller passes the
+// same retention notes use, so the two trashes empty on one clock.
+//
+// It reads nothing but the trash directory: a live file is never deleted here
+// however old it is.
+func (s *Store) PurgeExpired(d time.Duration) (int, error) {
+	trash := filepath.Join(s.dir, trashDir)
+	entries, err := os.ReadDir(trash)
+	if err != nil {
+		return 0, fmt.Errorf("reading the attachment trash: %w", err)
+	}
+
+	cutoff := time.Now().Add(-d)
+	var purged int
+	for _, e := range entries {
+		if e.IsDir() || !validBase(e.Name()) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue // it went away underneath us; nothing to do
+		}
+		if info.ModTime().After(cutoff) {
+			continue
+		}
+		if err := os.Remove(filepath.Join(trash, e.Name())); err != nil {
+			return purged, fmt.Errorf("deleting %s: %w", e.Name(), err)
+		}
+		purged++
+	}
+	return purged, nil
+}

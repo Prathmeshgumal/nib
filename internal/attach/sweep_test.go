@@ -146,3 +146,65 @@ func TestSweepStampsTheTrashTime(t *testing.T) {
 		t.Errorf("trashed at %v, want it stamped with roughly now (%v)", info.ModTime(), before)
 	}
 }
+
+func TestPurgeExpiredDeletesOnlyWhatIsOldEnough(t *testing.T) {
+	s := newTestStore(t)
+	recent := add(t, s, "trashed a moment ago")
+	ancient := add(t, s, "trashed long ago")
+
+	if _, _, err := s.Sweep(refs()); err != nil {
+		t.Fatal(err)
+	}
+
+	// Backdate one of them past the retention window.
+	old := time.Now().Add(-40 * 24 * time.Hour)
+	if err := os.Chtimes(filepath.Join(s.Dir(), ".trash", ancient), old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := s.PurgeExpired(30 * 24 * time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("purged %d, want 1", n)
+	}
+	if !trashed(t, s, recent) {
+		t.Errorf("%s was purged although it is recent", recent)
+	}
+	if trashed(t, s, ancient) {
+		t.Errorf("%s survived although it is past the window", ancient)
+	}
+}
+
+func TestPurgeExpiredLeavesLiveFilesAlone(t *testing.T) {
+	s := newTestStore(t)
+	base := add(t, s, "in use")
+
+	old := time.Now().Add(-365 * 24 * time.Hour)
+	if err := os.Chtimes(filepath.Join(s.Dir(), base), old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := s.PurgeExpired(30 * 24 * time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("purged %d, want 0: PurgeExpired must only ever read the trash", n)
+	}
+	if !live(t, s, base) {
+		t.Errorf("%s was deleted from the live directory", base)
+	}
+}
+
+func TestPurgeExpiredOnAnEmptyTrash(t *testing.T) {
+	s := newTestStore(t)
+	n, err := s.PurgeExpired(30 * 24 * time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("purged %d from an empty trash, want 0", n)
+	}
+}
