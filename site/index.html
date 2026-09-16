@@ -332,6 +332,28 @@
   .snippet .c { color: #64769a; }
   .snippet .y { color: var(--yellow); }
 
+  /* ── the aim demo ────────────────────────────────────── */
+  .aim { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 480px) { .aim { grid-template-columns: 1.35fr 1fr; } }
+  .aimpane {
+    display: flex; flex-direction: column; gap: 5px; text-align: left;
+    background: var(--navy); color: var(--screen-ink);
+    font-family: var(--mono); font-size: clamp(11px, 1.05vw, 13px); line-height: 1.5;
+    border: 2px solid #23375c; padding: 14px 14px 16px; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .aimpane:hover { border-color: #3c5a90; }
+  .aimpane.on { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(255,208,46,.16); }
+  .aimtitle { color: var(--blue2); font-weight: 600; margin-bottom: 3px; }
+  .aimpane.on .aimtitle { color: var(--yellow); }
+  .aimline { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aimline.dim { color: #64769a; }
+  .aimsays {
+    margin: 14px 0 0; font-family: var(--mono);
+    font-size: clamp(12px, 1.1vw, 13.5px); color: var(--ink2);
+  }
+  .aimsays b { color: var(--blue); }
+
   /* ── browser mock ────────────────────────────────────── */
   .browser {
     background: var(--paper2); border: 1px solid var(--rule);
@@ -412,7 +434,7 @@
     <a class="mark" href="#top"><i>$</i> nib</a>
     <div class="fill"></div>
     <div class="navlinks">
-      <a href="#file">Keys</a><a href="#lists">Lists</a>
+      <a href="#file">Keys</a><a href="#aim">Aim</a><a href="#lists">Lists</a>
       <a href="#speed">Speed</a><a href="#cost">Cost</a>
       <a href="#custody">Custody</a><a href="#browser">Browser</a><a href="#api">API</a>
     </div>
@@ -503,10 +525,68 @@
   </section>
 
   <!-- 02 ─────────────────────────────────────────────── -->
-  <section id="lists">
+  <section id="aim">
     <div class="wrap">
       <div class="head">
         <span class="no">[ 02 ]</span>
+        <div>
+          <span class="sr"><span class="sr-in slab sec">Point at it,</span></span>
+          <span class="sr yell"><span class="sr-in slab sec on-yell">then scroll</span></span>
+        </div>
+      </div>
+      <div class="split" style="align-items:start">
+        <div>
+          <p class="body">
+            Click a pane to aim at it. Click the note and <code class="i">↑</code>
+            <code class="i">↓</code> and the wheel scroll it; click the list and
+            they step between notes instead. Whichever you aimed at wears the
+            bright border, so there is always something on screen saying where
+            the next scroll will land.
+          </p>
+          <p class="body">
+            <strong><code class="i">w</code> <code class="i">s</code> and
+            <code class="i">j</code> <code class="i">k</code> ignore all of it.</strong>
+            They always mean &ldquo;another note&rdquo; and &ldquo;scroll this
+            one&rdquo; &mdash; so there is always a key whose effect does not
+            depend on where the mouse has been.
+          </p>
+          <p class="body" style="color:var(--faint)">
+            The honest cost: for the app to know which pane you clicked, the
+            terminal has to hand it the mouse, so selecting text means holding
+            <code class="i">shift</code> while you drag. The exception is
+            <code class="i">R</code> &mdash; the source view gives the mouse
+            back, because that screen exists to be copied.
+          </p>
+        </div>
+
+        <div>
+          <div class="aim" id="aimdemo">
+            <button class="aimpane on" type="button" data-aim="doc" aria-pressed="true">
+              <span class="aimtitle">Meeting notes</span>
+              <span class="aimline">&bull; [&#10003;] Agree the release date</span>
+              <span class="aimline">&bull; [ ] Draft the rollback steps</span>
+              <span class="aimline dim">&#9474; Ship Thursday if CI is green.</span>
+            </button>
+            <button class="aimpane" type="button" data-aim="list" aria-pressed="false">
+              <span class="aimtitle">Notes (4)</span>
+              <span class="aimline">&#9656; Meeting notes</span>
+              <span class="aimline dim">Shipping checklist</span>
+              <span class="aimline dim">Reading list</span>
+            </button>
+          </div>
+          <p class="aimsays" id="aimsays">
+            Aimed at the note &mdash; <b>the wheel scrolls it</b>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 ─────────────────────────────────────────────── -->
+  <section id="lists">
+    <div class="wrap">
+      <div class="head">
+        <span class="no">[ 03 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Lists finish</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">themselves</span></span>
@@ -533,11 +613,11 @@
     </div>
   </section>
 
-  <!-- 03 ─────────────────────────────────────────────── -->
+  <!-- 04 ─────────────────────────────────────────────── -->
   <section id="speed" class="dark">
     <div class="wrap">
       <div class="head">
-        <span class="no" style="color:#64769a">[ 03 ]</span>
+        <span class="no" style="color:#64769a">[ 04 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Nothing to</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">boot first</span></span>
@@ -569,11 +649,11 @@
     </div>
   </section>
 
-  <!-- 04 ─────────────────────────────────────────────── -->
+  <!-- 05 ─────────────────────────────────────────────── -->
   <section id="cost">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 04 ]</span>
+        <span class="no">[ 05 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">What it costs</span></span>
           <span class="sr blue"><span class="sr-in slab sec on-blue">your machine</span></span>
@@ -635,11 +715,11 @@
     </div>
   </section>
 
-  <!-- 05 ─────────────────────────────────────────────── -->
+  <!-- 06 ─────────────────────────────────────────────── -->
   <section id="custody">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 05 ]</span>
+        <span class="no">[ 06 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Chain of</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">custody</span></span>
@@ -678,11 +758,11 @@
     </div>
   </section>
 
-  <!-- 06 ─────────────────────────────────────────────── -->
+  <!-- 07 ─────────────────────────────────────────────── -->
   <section id="browser">
     <div class="wrap">
       <div class="head">
-        <span class="no">[ 06 ]</span>
+        <span class="no">[ 07 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Same notes,</span></span>
           <span class="sr blue"><span class="sr-in slab sec on-blue">in a browser</span></span>
@@ -759,11 +839,11 @@
     </div>
   </section>
 
-  <!-- 07 ─────────────────────────────────────────────── -->
+  <!-- 08 ─────────────────────────────────────────────── -->
   <section id="api" class="dark">
     <div class="wrap">
       <div class="head">
-        <span class="no" style="color:#64769a">[ 07 ]</span>
+        <span class="no" style="color:#64769a">[ 08 ]</span>
         <div>
           <span class="sr"><span class="sr-in slab sec">Your notes,</span></span>
           <span class="sr yell"><span class="sr-in slab sec on-yell">scriptable</span></span>
@@ -1016,6 +1096,27 @@
         // Rate-limited or offline: say nothing rather than show a wrong number.
         el.textContent = '★';
       });
+  })();
+
+  /* ── the aim demo: clicking a pane is the whole point, so let them ── */
+  (function () {
+    var demo = document.getElementById('aimdemo'), says = document.getElementById('aimsays');
+    if (!demo || !says) return;
+    var panes = Array.prototype.slice.call(demo.querySelectorAll('.aimpane'));
+    var line = {
+      doc:  'Aimed at the note &mdash; <b>the wheel scrolls it</b>.',
+      list: 'Aimed at the list &mdash; <b>the wheel steps between notes</b>.'
+    };
+    panes.forEach(function (pane) {
+      pane.addEventListener('click', function () {
+        panes.forEach(function (p) {
+          var on = p === pane;
+          p.classList.toggle('on', on);
+          p.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        says.innerHTML = line[pane.dataset.aim];
+      });
+    });
   })();
 
   var btn = document.getElementById('copy');

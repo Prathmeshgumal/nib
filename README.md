@@ -36,7 +36,7 @@ preview. Both stay open at once, backed by the same file.
 - [The idea](#the-idea)
 - [Install](#install) · [Platforms](#platforms)
 - [Starting it](#starting-it)
-- [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [deleting](#deleting-and-undoing-it)
+- [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [aiming](#the-arrows-and-the-wheel-follow-your-last-click) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [deleting](#deleting-and-undoing-it) · [the browser](#the-web-ui-from-the-terminal)
 - [The web UI](#the-web-ui)
 - [Writing notes](#writing-notes) — the Markdown it understands
 - [Your notes on disk](#your-notes-on-disk)
