@@ -23,7 +23,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteNoteDialog } from '@/components/DeleteNoteDialog';
+import { toast } from 'sonner';
 import { actions } from '@/lib/editorActions';
+import { uploadAttachment } from '@/lib/api';
 import { renderMarkdown } from '@/lib/markdown';
 
 const TOOLBAR = [
@@ -49,6 +51,7 @@ const TOOLBAR = [
 
 export default function Editor({ note, onChange, onSave, onDelete, saving, dirty }) {
   const [tab, setTab] = useState('write');
+  const [dropping, setDropping] = useState(false);
   const textareaRef = useRef(null);
 
   const apply = (key) => {
@@ -64,6 +67,43 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
       el.focus();
       el.setSelectionRange(next.start, next.end);
     });
+  };
+
+  // Put text where the cursor is, or at the end if the textarea has never
+  // been focused.
+  const insert = (text) => {
+    const el = textareaRef.current;
+    const at = el ? el.selectionStart : note.content.length;
+    const before = note.content.slice(0, at);
+    const after = note.content.slice(at);
+    // Keep the line to itself: an image wedged into a paragraph renders as
+    // part of that paragraph.
+    const lead = before === '' || before.endsWith('\n') ? '' : '\n';
+    onChange({ ...note, content: `${before}${lead}${text}\n${after}` });
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const caret = before.length + lead.length + text.length + 1;
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
+  // Drops and pastes share this, so a saved file and a screenshot behave the
+  // same way. Uploads run one at a time: each insert depends on where the
+  // previous one left the cursor.
+  const take = async (files) => {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+    for (const file of list) {
+      try {
+        const { markdown } = await uploadAttachment(file);
+        insert(markdown);
+      } catch (err) {
+        toast.error(`Could not attach ${file.name || 'that file'}`, {
+          description: err.message,
+        });
+      }
+    }
   };
 
   const onKeyDown = (e) => {
@@ -146,18 +186,50 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
             ))}
           </div>
 
-          <Textarea
-            ref={textareaRef}
-            value={note.content}
-            placeholder="Write your note in Markdown…"
-            onChange={(e) => onChange({ ...note, content: e.target.value })}
-            onKeyDown={onKeyDown}
-            spellCheck
-            className="min-h-0 flex-1 resize-none font-mono text-[13px] leading-relaxed"
-          />
+          <div
+            className="relative flex min-h-0 flex-1 flex-col"
+            onDragOver={(e) => {
+              // Without this the browser navigates away to the dropped file.
+              e.preventDefault();
+              setDropping(true);
+            }}
+            onDragLeave={(e) => {
+              // Ignore the events fired while crossing child elements.
+              if (e.currentTarget.contains(e.relatedTarget)) return;
+              setDropping(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropping(false);
+              take(e.dataTransfer.files);
+            }}
+          >
+            <Textarea
+              ref={textareaRef}
+              value={note.content}
+              placeholder="Write your note in Markdown…"
+              onChange={(e) => onChange({ ...note, content: e.target.value })}
+              onKeyDown={onKeyDown}
+              onPaste={(e) => {
+                // Only step in for a paste that carries files; pasting text
+                // must behave exactly as it always has.
+                if (!e.clipboardData.files.length) return;
+                e.preventDefault();
+                take(e.clipboardData.files);
+              }}
+              spellCheck
+              className="min-h-0 flex-1 resize-none font-mono text-[13px] leading-relaxed"
+            />
+            {dropping && (
+              <div className="bg-background/80 text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed text-sm font-medium">
+                Drop to attach
+              </div>
+            )}
+          </div>
 
           <p className="text-muted-foreground text-xs">
-            Markdown supported · <kbd className="font-mono">Ctrl+S</kbd> to save
+            Markdown supported · <kbd className="font-mono">Ctrl+S</kbd> to save ·
+            drop or paste a file to attach it
           </p>
         </TabsContent>
 
