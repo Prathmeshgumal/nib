@@ -1065,3 +1065,19 @@ func TestOnlyTheNoteListHoldsTheMouse(t *testing.T) {
 		}
 	}
 }
+
+func TestTheStatusBarKeepsItsWidth(t *testing.T) {
+	// docs/screenshot.svg draws this line by placing every character at its own
+	// x position, so a change in length silently misaligns the committed
+	// screenshots. Changing the wording is fine; changing the width is not,
+	// unless the SVGs are regenerated in the same commit.
+	const want = 95
+	m, _ := newTestModel(t)
+	m.mode = modeList
+	bar := m.helpLine()
+	if got := len([]rune(bar)); got != want {
+		t.Errorf("status bar is %d characters, want %d.\n  %q\n"+
+			"If this change is deliberate, regenerate docs/screenshot.svg and "+
+			"update the terminal in site/index.html.", got, want, bar)
+	}
+}

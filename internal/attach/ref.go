@@ -21,6 +21,9 @@ type Ref struct {
 // Base is the name the file has on disk.
 func (r Ref) Base() string { return r.ID + r.Ext }
 
+// unknownExt is what a name contributes when it offers no usable extension.
+const unknownExt = ".bin"
+
 // extensions fixes the extension for the types worth naming properly. The
 // standard library's mime.ExtensionsByType is not used here: it returns a
 // slice in no guaranteed order, so the same bytes could be stored as .jpg on
@@ -39,14 +42,38 @@ var extensions = map[string]string{
 	"text/html":       ".html",
 }
 
+// containers are the types whose bytes do not say what the file really is.
+// Every Office document, every .odt and every .epub is a zip; markdown, CSV,
+// JSON and source code are all "plain text". Sniffing one of these tells you
+// the envelope, not the contents — so for these the name the user gave is the
+// better evidence, and the value here is only the fallback when the name
+// offers nothing.
+//
+// This is why a .docx must not be stored as .zip: the extension is what the
+// system opener uses to choose an application, and an archive manager is not
+// what anyone wanted when they attached a Word document.
+var containers = map[string]string{
+	"application/zip":          ".zip",
+	"application/octet-stream": ".bin",
+	"text/plain":               ".txt",
+}
+
 // describe works out what a file is from its first bytes, falling back to the
-// name the user gave it when the contents are not recognisable.
+// name the user gave it when the contents do not pin it down.
 func describe(head []byte, name string) (mimeType, ext string) {
 	mimeType = http.DetectContentType(head)
 	// DetectContentType appends parameters, as in "text/plain; charset=utf-8".
 	if base, _, err := mime.ParseMediaType(mimeType); err == nil {
 		mimeType = base
 	}
+	if fallback, ok := containers[mimeType]; ok {
+		if ext := extFromName(name); ext != unknownExt {
+			return mimeType, ext
+		}
+		return mimeType, fallback
+	}
+	// A format whose bytes identify it: the contents win, and a PNG named
+	// .jpg is still stored as a PNG.
 	if ext, ok := extensions[mimeType]; ok {
 		return mimeType, ext
 	}
@@ -58,11 +85,11 @@ func describe(head []byte, name string) (mimeType, ext string) {
 func extFromName(name string) string {
 	ext := strings.ToLower(filepath.Ext(name))
 	if len(ext) < 2 || len(ext) > 9 {
-		return ".bin"
+		return unknownExt
 	}
 	for _, r := range ext[1:] {
 		if !('a' <= r && r <= 'z' || '0' <= r && r <= '9') {
-			return ".bin"
+			return unknownExt
 		}
 	}
 	return ext
