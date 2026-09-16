@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 // MaxSize is the largest file we will take. Well past any screenshot, phone
@@ -120,4 +121,27 @@ func (h *headBuffer) Write(p []byte) (int, error) {
 		h.buf = append(h.buf, p[:min(len(p), room)]...)
 	}
 	return len(p), nil
+}
+
+// name is the exact shape this package writes: sixteen lowercase hex
+// characters, a dot, and a short lowercase extension. Anything else is
+// refused before it is used to build a path, so no request can name a file
+// outside the directory however it is spelled or encoded.
+var storedName = regexp.MustCompile(`^[0-9a-f]{16}\.[a-z0-9]{1,8}$`)
+
+func validBase(base string) bool { return storedName.MatchString(base) }
+
+// Read opens a stored attachment by its name on disk.
+func (s *Store) Read(base string) (*os.File, error) {
+	if !validBase(base) {
+		return nil, fmt.Errorf("%q: %w", base, ErrBadName)
+	}
+	f, err := os.Open(filepath.Join(s.dir, base))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("%s: %w", base, ErrNotFound)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }

@@ -161,3 +161,68 @@ func (zeros) Read(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+func TestReadReturnsTheFile(t *testing.T) {
+	s := newTestStore(t)
+	ref, err := s.Add("hello.txt", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := s.Read(ref.Base())
+	if err != nil {
+		t.Fatalf("reading %s: %v", ref.Base(), err)
+	}
+	defer f.Close()
+
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello" {
+		t.Errorf("read %q, want %q", got, "hello")
+	}
+}
+
+func TestReadRefusesAnythingItDidNotWrite(t *testing.T) {
+	s := newTestStore(t)
+
+	// A real file one level up, to prove the traversal cases are not just
+	// failing because the target happens not to exist.
+	outside := filepath.Join(filepath.Dir(s.Dir()), "secret.txt")
+	if err := os.WriteFile(outside, []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, base := range []string{
+		"../secret.txt",
+		"../../etc/passwd",
+		"/etc/passwd",
+		".trash/8f3a91c2d4e5f607.png",
+		"8f3a91c2d4e5f607.png/../../secret.txt",
+		"8F3A91C2D4E5F607.png",
+		"8f3a91.png",
+		"8f3a91c2d4e5f607",
+		"8f3a91c2d4e5f607.png.exe",
+		"",
+		".",
+		"..",
+	} {
+		f, err := s.Read(base)
+		if err == nil {
+			f.Close()
+			t.Errorf("Read(%q) succeeded, want it refused", base)
+			continue
+		}
+		if !errors.Is(err, ErrBadName) {
+			t.Errorf("Read(%q) = %v, want ErrBadName", base, err)
+		}
+	}
+}
+
+func TestReadOfAMissingFile(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.Read("8f3a91c2d4e5f607.png"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
