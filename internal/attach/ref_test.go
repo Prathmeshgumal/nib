@@ -1,6 +1,9 @@
 package attach
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestDescribeNamesFilesAfterTheirContents(t *testing.T) {
 	png := []byte("\x89PNG\r\n\x1a\n" + "the rest does not matter")
@@ -87,5 +90,56 @@ func TestRefMarkdownSurvivesAnEmptyName(t *testing.T) {
 	r := Ref{ID: "0123456789abcdef", Name: "", Ext: ".png", MIME: "image/png"}
 	if got, want := r.Markdown(), "![image](attachments/0123456789abcdef.png)"; got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestRefsFindsEveryForm(t *testing.T) {
+	md := `# Notes
+
+![shot](attachments/8f3a91c2d4e5f607.png) and a file
+[report.pdf](attachments/2b7c0419aa3d1e88.pdf).
+
+The same image again: ![again](attachments/8f3a91c2d4e5f607.png)
+`
+	got := Refs(md)
+	want := []string{"8f3a91c2d4e5f607", "2b7c0419aa3d1e88"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Refs = %v, want %v (in order, without repeats)", got, want)
+	}
+}
+
+func TestRefsIgnoresWhatIsNotOurs(t *testing.T) {
+	md := `
+![remote](https://example.com/attachments/8f3a91c2d4e5f607.png)
+![short](attachments/8f3a91.png)
+![capitals](attachments/8F3A91C2D4E5F607.png)
+[a folder](attachments/)
+plain text mentioning attachments/ and nothing else
+`
+	if got := Refs(md); len(got) != 0 {
+		t.Errorf("Refs = %v, want none of these to count", got)
+	}
+}
+
+func TestRefsOfAnEmptyNote(t *testing.T) {
+	if got := Refs(""); len(got) != 0 {
+		t.Errorf("Refs = %v, want empty", got)
+	}
+}
+
+func TestMarkdownAndRefsAgree(t *testing.T) {
+	// Whatever Markdown writes, Refs must find. These two are the only writer
+	// and the only reader of the format; if they drift apart, Sweep trashes
+	// files that notes are still using.
+	for _, r := range []Ref{
+		{ID: "8f3a91c2d4e5f607", Name: "shot.png", Ext: ".png", MIME: "image/png"},
+		{ID: "2b7c0419aa3d1e88", Name: "report.pdf", Ext: ".pdf", MIME: "application/pdf"},
+		{ID: "0123456789abcdef", Name: "photo [final].png", Ext: ".png", MIME: "image/png"},
+		{ID: "fedcba9876543210", Name: "", Ext: ".bin", MIME: "application/octet-stream"},
+	} {
+		got := Refs(r.Markdown())
+		if len(got) != 1 || got[0] != r.ID {
+			t.Errorf("Refs(%q) = %v, want [%s]", r.Markdown(), got, r.ID)
+		}
 	}
 }

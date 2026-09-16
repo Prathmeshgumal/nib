@@ -4,6 +4,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -90,3 +91,29 @@ func (r Ref) Markdown() string {
 }
 
 func (r Ref) isImage() bool { return strings.HasPrefix(r.MIME, "image/") }
+
+// reference matches an attachment link as Markdown writes it. The leading
+// boundary keeps a remote URL that happens to end the same way from counting:
+// the reference must start right after "(" or whitespace, never after a "/".
+var reference = regexp.MustCompile(`(^|[(\s])attachments/([0-9a-f]{16})\.[a-z0-9]{1,8}`)
+
+// Refs reports the attachments a note's markdown refers to, in the order they
+// appear and without repeats. It is pure: no files are opened.
+//
+// This is the only reader of the reference format, as Markdown is its only
+// writer. Sweep trusts it completely - a reference it fails to see is a file
+// that gets trashed while a note is still using it.
+func Refs(markdown string) []string {
+	matches := reference.FindAllStringSubmatch(markdown, -1)
+	ids := make([]string, 0, len(matches))
+	seen := make(map[string]struct{}, len(matches))
+	for _, m := range matches {
+		id := m[2]
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
