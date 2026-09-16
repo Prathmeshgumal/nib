@@ -264,6 +264,16 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, m.reload())
 
 	case modeEdit:
+		// A file dragged onto the terminal arrives as a pasted path, so a
+		// paste that names only existing files is an attachment rather than
+		// text. Anything else falls straight through and types as it always
+		// has. The title is one line of plain text, so it never imports.
+		if msg.Paste && !m.focusTitle {
+			if paths := droppedPaths(string(msg.Runes)); len(paths) > 0 {
+				return m, m.attachDropped(paths)
+			}
+		}
+
 		// Formatting works on the body only; the title is a single line.
 		// These are alt+ combinations because the terminal spends most of the
 		// control range on its own codes: ctrl+i is Tab, ctrl+h is Backspace,
