@@ -91,14 +91,52 @@
    These are spans made to behave as blocks - see the comment on `player` in
    lib/markdown.js for why they cannot be a <figure>. */
 @layer components {
+  /* The wrapper hugs the media rather than sizing it, so the grip and the
+     caption sit against the picture's real edge whatever width it is. */
   .nib-media {
-    @apply my-4 block;
+    @apply relative my-4 block w-fit max-w-full;
   }
+  /* The default widths. An inline width from a drag beats these, because it
+     is inline - which is also why the cap on how wide a drag can go is
+     max-width and not width. */
   .nib-video {
-    @apply block max-h-[70vh] w-full max-w-2xl rounded-md bg-black;
+    @apply block max-h-[70vh] w-[42rem] max-w-full rounded-md bg-black;
   }
   .nib-audio {
-    @apply block w-full max-w-md;
+    @apply block w-[28rem] max-w-full;
+  }
+  .nib-media img {
+    @apply my-0 block h-auto max-w-full;
+  }
+  /* The corner to drag. It stays out of the way until the pointer is over the
+     media, so a note being read looks no different from before. */
+  .nib-grip {
+    @apply absolute right-0 bottom-0 block size-4 cursor-nwse-resize opacity-0 transition-opacity;
+    /* Without this a drag on a touch screen scrolls the note instead of
+       resizing: the browser claims the gesture before pointermove ever fires. */
+    touch-action: none;
+    /* A triangle in the corner, drawn rather than shipped as an icon. */
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      var(--color-muted-foreground) 50%
+    );
+    border-bottom-right-radius: calc(var(--radius) - 2px);
+  }
+  .nib-media:hover .nib-grip,
+  .nib-grip:active {
+    @apply opacity-70;
+  }
+  /* The caption sits below the picture, so the grip must not land on it. */
+  .nib-media:has(.nib-caption) .nib-grip {
+    bottom: 1.75rem;
+  }
+  /* Mid-drag the pointer is long gone from the grip, and a cursor that changes
+     over whatever is underneath makes the drag feel like it has come loose. */
+  .nib-resizing,
+  .nib-resizing * {
+    cursor: nwse-resize !important;
+    user-select: none;
   }
   /* The filename, close enough under the player to read as its label and
      quiet enough not to compete with the prose around it. */

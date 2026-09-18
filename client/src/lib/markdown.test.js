@@ -1,5 +1,6 @@
-import { expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { renderMarkdown } from './markdown';
+import { setSize } from './mediaSize';
 
 const parse = (html) => {
   const host = document.createElement('div');
@@ -144,4 +145,67 @@ it('keeps the source offsets intact when a player replaces a link', () => {
   expect(stamped).toEqual(['# Title', 'before', `[clip.mp4](attachments/${ID}.mp4)`]);
   // and the player is inside the block that still carries its offset
   expect(host.querySelector('video').closest('[data-src]')).not.toBe(null);
+});
+
+// Resizing. The width lives in browser storage, so the note is untouched and
+// the terminal never sees any of this.
+describe('resizable media', () => {
+  afterEach(() => window.localStorage.clear());
+
+  it('wraps an attached image so it has a corner to drag', () => {
+    const host = parse(renderMarkdown(`![shot](attachments/${ID}.png)`));
+    const box = host.querySelector('.nib-media');
+    expect(box).not.toBe(null);
+    expect(box.dataset.file).toBe(`${ID}.png`);
+    expect(box.querySelector('img.nib-sizable')).not.toBe(null);
+    expect(box.querySelector('.nib-grip')).not.toBe(null);
+  });
+
+  it('gives a video the same corner', () => {
+    const host = parse(renderMarkdown(`[clip.mp4](attachments/${ID}.mp4)`));
+    expect(host.querySelector('video.nib-sizable')).not.toBe(null);
+    expect(host.querySelector('.nib-grip')).not.toBe(null);
+  });
+
+  it('leaves audio alone, which has nothing to size', () => {
+    const host = parse(renderMarkdown(`[song.mp3](attachments/${ID}.mp3)`));
+    expect(host.querySelector('audio')).not.toBe(null);
+    expect(host.querySelector('.nib-grip')).toBe(null);
+  });
+
+  it('does not touch a picture from elsewhere on the web', () => {
+    const host = parse(renderMarkdown('![x](https://example.test/x.png)'));
+    expect(host.querySelector('.nib-media')).toBe(null);
+    expect(host.querySelector('img')).not.toBe(null);
+  });
+
+  it('applies the width the reader last chose', () => {
+    setSize(`${ID}.png`, 360);
+    const img = parse(renderMarkdown(`![shot](attachments/${ID}.png)`))
+      .querySelector('img');
+    expect(img.style.width).toBe('360px');
+  });
+
+  it('leaves the width alone when nothing was stored', () => {
+    const img = parse(renderMarkdown(`![shot](attachments/${ID}.png)`))
+      .querySelector('img');
+    expect(img.style.width).toBe('');
+  });
+
+  it('keeps each file at its own size', () => {
+    setSize(`${ID}.png`, 360);
+    const src = `![a](attachments/${ID}.png)\n\n![b](attachments/aaaaaaaaaaaaaaaa.png)`;
+    const widths = [...parse(renderMarkdown(src)).querySelectorAll('img')]
+      .map((el) => el.style.width);
+    expect(widths).toEqual(['360px', '']);
+  });
+
+  it('keeps the source offsets, and survives being parsed again', () => {
+    const src = `text\n\n![shot](attachments/${ID}.png)\n`;
+    const once = renderMarkdown(src);
+    const host = parse(once);
+    expect(host.querySelectorAll('p')).toHaveLength(2);
+    expect(host.querySelector('img').closest('p[data-src]')).not.toBe(null);
+    expect(host.innerHTML).toBe(once);
+  });
 });
