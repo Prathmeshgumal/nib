@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { blockSpans, stampTargets } from '@/lib/sourceMap';
 import { isViewable, kindOf, rawHref, storedName, viewerHref } from '@/lib/attachments';
+import { sizeFor } from '@/lib/mediaSize';
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -20,7 +21,7 @@ marked.setOptions({ gfm: true, breaks: true });
 // offset with it.
 function player(kind, name, label) {
   const box = document.createElement('span');
-  box.className = 'nib-media';
+  box.className = `nib-media nib-media-${kind}`;
 
   const el = document.createElement(kind);
   el.setAttribute('controls', '');
@@ -45,7 +46,36 @@ function player(kind, name, label) {
   caption.append(save);
 
   box.append(el, caption);
+  // A video has a picture worth sizing to taste. An audio player is a row of
+  // controls at a fixed height, so dragging it wider would do nothing useful.
+  if (kind === 'video') resizable(box, el, name);
   return box;
+}
+
+// resizable gives a wrapper a corner to drag, and applies the width the reader
+// last chose for that file.
+//
+// The width goes on the media itself rather than the wrapper, which then hugs
+// whatever size the media is. Sizing the wrapper instead would mean the
+// picture's width depends on the box and the box's width depends on the
+// picture, and an unsized image has no way out of that.
+//
+// The stored width is not clamped here: what it has to fit inside is the
+// rendered column, which does not exist yet at this point. The CSS caps it at
+// the column's width, and a drag clamps against the real measurement.
+function resizable(box, media, name) {
+  box.dataset.file = name;
+  media.classList.add('nib-sizable');
+
+  const width = sizeFor(name);
+  if (width !== null) media.style.width = `${width}px`;
+
+  const grip = document.createElement('span');
+  grip.className = 'nib-grip not-prose';
+  // The drag is a pointer gesture with no text in it, so there is nothing here
+  // for a screen reader to announce and nothing to put in the tab order.
+  grip.setAttribute('aria-hidden', 'true');
+  box.append(grip);
 }
 
 // upgradeAttachments turns the plain links the note stores into whatever the
@@ -59,6 +89,20 @@ function player(kind, name, label) {
 // player replaces an inline node inside a block, never a block itself, so the
 // stamped elements stay exactly as the offset walk counted them.
 function upgradeAttachments(host) {
+  // An image already draws itself; all it wants is a corner to drag. The
+  // wrapper is the same one the players use, minus the caption: an image's
+  // alt text already names it, and adding one would change how every note
+  // that has ever held a picture looks.
+  for (const img of host.querySelectorAll('img[src]')) {
+    const name = storedName(img.getAttribute('src'));
+    if (!name) continue; // a picture from somewhere else on the web
+    const box = document.createElement('span');
+    box.className = 'nib-media nib-media-image';
+    img.replaceWith(box);
+    box.append(img);
+    resizable(box, img, name);
+  }
+
   for (const link of host.querySelectorAll('a[href]')) {
     const name = storedName(link.getAttribute('href'));
     if (!name) continue; // an ordinary link in the prose
