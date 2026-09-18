@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockSpans, offsetFromClick, stampTargets } from './sourceMap';
+import { blockSpans, offsetFromClick, scrollCaretIntoView, stampTargets } from './sourceMap';
 
 // The note that prompted this feature: a heading, prose, a wide table and a
 // nested list.
@@ -109,4 +109,25 @@ describe('offsetFromClick', () => {
     const host = render('<p data-src="42">a</p>');
     expect(offsetFromClick(host, host)).toBeNull();
   });
+});
+
+it('scrolls a long note so the caret line is roughly centred', () => {
+  const el = document.createElement('textarea');
+  el.value = Array.from({ length: 200 }, (_, i) => `line ${i}`).join('\n');
+  document.body.appendChild(el);
+  Object.defineProperty(el, 'clientHeight', { value: 300, configurable: true });
+  el.style.lineHeight = '20px';
+
+  const offset = el.value.indexOf('line 100');
+  scrollCaretIntoView(el, offset);
+  // line 100 sits at 2000px; centring it in a 300px box puts the top at 1850.
+  expect(el.scrollTop).toBe(1850);
+});
+
+it('does not scroll above the top for a caret on the first line', () => {
+  const el = document.createElement('textarea');
+  el.value = 'first\nsecond';
+  document.body.appendChild(el);
+  scrollCaretIntoView(el, 0);
+  expect(el.scrollTop).toBe(0);
 });

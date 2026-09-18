@@ -75,3 +75,13 @@ export function offsetFromClick(target, root) {
   }
   return null;
 }
+
+// Put the caret's line near the middle of the box. Soft wrapping means a long
+// line occupies more than one row, so this is a hint rather than a
+// measurement — the caret itself is exact, and the browser nudges the last bit
+// once the textarea has focus.
+export function scrollCaretIntoView(el, offset) {
+  const lineHeight = parseFloat(window.getComputedStyle(el).lineHeight) || 20;
+  const line = (el.value.slice(0, offset).match(/\n/g) || []).length;
+  el.scrollTop = Math.max(0, line * lineHeight - el.clientHeight / 2);
+}

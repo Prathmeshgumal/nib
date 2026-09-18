@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import NoteList from '@/components/NoteList';
-import Editor from '@/components/Editor';
-import SavedView from '@/components/SavedView';
+import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
 import { Card } from '@/components/ui/card';
 import { TrashDialog } from '@/components/TrashDialog';
@@ -21,8 +20,10 @@ const blankNote = () => ({ id: null, title: '', content: '', updated_at: null })
 
 export default function App() {
   const [notes, setNotes] = useState([]);
-  const [draft, setDraft] = useState(null);     // note open in the editor
-  const [viewing, setViewing] = useState(null); // note open read-only
+  const [note, setNote] = useState(null);       // the open note
+  const [mode, setMode] = useState('read');     // 'read' | 'write'
+  const [baseline, setBaseline] = useState(''); // content when write mode began
+  const [caretAt, setCaretAt] = useState(null); // {offset} for one click
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -57,24 +58,26 @@ export default function App() {
   }, [refreshTrash]);
 
   const startNew = () => {
-    setViewing(null);
-    setDraft(blankNote());
+    setNote(blankNote());
+    setBaseline('');
+    setMode('write');
+    setCaretAt({ offset: 0 });
     setDirty(false);
   };
 
   const save = async () => {
-    if (!draft) return;
+    if (!note) return;
     setSaving(true);
     try {
-      const payload = { title: draft.title, content: draft.content };
-      const saved = draft.id
-        ? await updateNote(draft.id, payload)
+      const payload = { title: note.title, content: note.content };
+      const saved = note.id
+        ? await updateNote(note.id, payload)
         : await createNote(payload);
       setDirty(false);
-      setDraft(null);
-      setViewing(saved);
+      setNote(saved);
       await refresh(query);
-      toast.success(draft.id ? 'Note saved' : 'Note created');
+      toast.success(note.id ? 'Note saved' : 'Note created');
+      return saved;
     } catch (e) {
       toast.error('Save failed', { description: e.message });
     } finally {
@@ -82,11 +85,37 @@ export default function App() {
     }
   };
 
+  // Clicking the prose is the whole gesture: the note stays put, the pane
+  // turns into its source, and the cursor lands where the click did.
+  const openAt = (offset) => {
+    setBaseline(note.content);
+    setMode('write');
+    // Always a fresh object, so clicking the same block twice moves the cursor
+    // back to it. A null offset still focuses; it just does not aim.
+    setCaretAt({ offset });
+  };
+
+  // Esc puts back what was there when writing began, so a discard costs
+  // nothing more than the switch back to reading.
+  const cancel = async () => {
+    setCaretAt(null);
+    setMode('read');
+    if (note.content === baseline) return;
+    setNote((n) => ({ ...n, content: baseline }));
+    setDirty(false);
+  };
+
+  const saveAndRead = async () => {
+    await save();
+    setMode('read');
+    setCaretAt(null);
+  };
+
   const remove = async (id) => {
     try {
       await deleteNote(id);
-      setDraft(null);
-      setViewing(null);
+      setNote(null);
+      setMode('read');
       setDeleted((d) => [...d, id]);
       await Promise.all([refresh(query), refreshTrash()]);
       toast.success('Moved to trash', {
@@ -100,10 +129,11 @@ export default function App() {
   // Restoring is shared by the undo action and the trash dialog.
   const restore = async (id) => {
     try {
-      const note = await restoreNote(id);
+      const restored = await restoreNote(id);
       setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
-      setViewing(note);
+      setNote(restored);
+      setMode('read');
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });
@@ -145,10 +175,12 @@ export default function App() {
     <div className="flex h-svh flex-col md:flex-row">
       <NoteList
         notes={notes}
-        selectedId={viewing?.id ?? draft?.id}
-        onSelect={(note) => {
-          setDraft(null);
-          setViewing(note);
+        selectedId={note?.id}
+        onSelect={(next) => {
+          setNote(next);
+          setMode('read');
+          setCaretAt(null);
+          setDirty(false);
         }}
         onNew={startNew}
         query={query}
@@ -161,27 +193,21 @@ export default function App() {
 
       <main className="flex min-h-0 flex-1 flex-col p-4 md:p-6">
         <Card className="flex min-h-0 flex-1 flex-col gap-0 p-5">
-          {draft ? (
-            <Editor
-              note={draft}
+          {note ? (
+            <NotePane
+              note={note}
+              mode={mode}
+              caretAt={caretAt}
+              onOpenAt={openAt}
               onChange={(next) => {
-                setDraft(next);
+                setNote(next);
                 setDirty(true);
               }}
-              onSave={save}
+              onSave={saveAndRead}
+              onCancel={cancel}
               onDelete={remove}
               saving={saving}
-              dirty={dirty || !draft.id}
-            />
-          ) : viewing ? (
-            <SavedView
-              note={viewing}
-              onDelete={remove}
-              onEdit={() => {
-                setDraft(viewing);
-                setViewing(null);
-                setDirty(false);
-              }}
+              dirty={dirty || !note.id}
             />
           ) : (
             <EmptyState onNew={startNew} />
