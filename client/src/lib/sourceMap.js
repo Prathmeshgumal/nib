@@ -49,3 +49,29 @@ export function blockSpans(markdown) {
   }
   return out;
 }
+
+// The rendered counterparts of blockSpans, in document order. A list renders
+// as one element holding many items and a table as one holding many rows, so
+// both are opened up; everything else is one block, one element — including a
+// blockquote, which blockSpans also treats as a single block.
+export function stampTargets(root) {
+  const out = [];
+  for (const el of root.children) {
+    if (el.tagName === 'UL' || el.tagName === 'OL') out.push(...el.querySelectorAll('li'));
+    else if (el.tagName === 'TABLE') out.push(...el.querySelectorAll('tbody tr'));
+    else out.push(el);
+  }
+  return out;
+}
+
+// Where in the source the clicked block begins, or null when the click landed
+// on padding rather than on any block.
+export function offsetFromClick(target, root) {
+  let el = target instanceof Element ? target : target?.parentElement;
+  while (el && el !== root) {
+    const at = el.getAttribute('data-src');
+    if (at !== null) return Number(at);
+    el = el.parentElement;
+  }
+  return null;
+}

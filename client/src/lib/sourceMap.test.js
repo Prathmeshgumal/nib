@@ -72,3 +72,41 @@ describe('blockSpans', () => {
     expect(blockSpans(undefined)).toEqual([]);
   });
 });
+
+function render(html) {
+  const host = document.createElement('div');
+  host.innerHTML = html;
+  return host;
+}
+
+describe('stampTargets', () => {
+  it('returns one element per span, in the same order', () => {
+    const host = render(
+      '<h1>h</h1>' +
+        '<table><thead><tr><th>#</th></tr></thead><tbody><tr><td>1</td></tr><tr><td>2</td></tr></tbody></table>' +
+        '<ul><li>one<ul><li>nested</li></ul></li><li>two</li></ul>' +
+        '<p>p</p>'
+    );
+    expect(stampTargets(host).map((el) => el.tagName)).toEqual([
+      'H1', 'TR', 'TR', 'LI', 'LI', 'LI', 'P',
+    ]);
+  });
+
+  it('does not descend into a blockquote, which is one block', () => {
+    const host = render('<blockquote><p>a</p><p>b</p></blockquote>');
+    expect(stampTargets(host).map((el) => el.tagName)).toEqual(['BLOCKQUOTE']);
+  });
+});
+
+describe('offsetFromClick', () => {
+  it('finds the offset on the nearest stamped ancestor', () => {
+    const host = render('<p data-src="42">a <strong>word</strong></p>');
+    const strong = host.querySelector('strong');
+    expect(offsetFromClick(strong.firstChild, host)).toBe(42);
+  });
+
+  it('returns null for a click on padding, above every stamped element', () => {
+    const host = render('<p data-src="42">a</p>');
+    expect(offsetFromClick(host, host)).toBeNull();
+  });
+});
