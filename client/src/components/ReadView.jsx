@@ -19,6 +19,8 @@ export default function ReadView({ note, onDelete, onOpenAt, onToggleTask }) {
               Updated {relativeTime(note.updated_at)}
             </span>
             <Badge variant="outline" className="ml-1">Saved</Badge>
+            {/* A single click no longer opens the editor, so say what does. */}
+            <span className="ml-1 hidden sm:inline">· Double-click to edit</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -36,15 +38,22 @@ export default function ReadView({ note, onDelete, onOpenAt, onToggleTask }) {
       <article
         className="prose prose-zinc dark:prose-invert min-h-0 max-w-none flex-1 cursor-text overflow-y-auto pb-6"
         onClick={(e) => {
-          // A link is a link first. Let the browser follow it.
-          if (e.target.closest('a')) return;
-          // Ticking a box is the whole gesture — it must not also drop you
-          // into the editor.
+          // Ticking a box is a single click, because it is the one gesture in
+          // the rendered note that is not about editing text.
           if (e.target.matches('input[type="checkbox"]')) {
             const at = offsetFromClick(e.target, e.currentTarget);
             if (at !== null) onToggleTask(at);
-            return;
           }
+          // Everything else does nothing: a single click is for reading,
+          // selecting and following links.
+        }}
+        onDoubleClick={(e) => {
+          // A link is a link first. Let the browser follow it.
+          if (e.target.closest('a')) return;
+          if (e.target.matches('input[type="checkbox"]')) return;
+          // The double click has just selected a word; the caret we are about
+          // to set is the one that matters.
+          window.getSelection()?.removeAllRanges();
           onOpenAt(offsetFromClick(e.target, e.currentTarget));
         }}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
