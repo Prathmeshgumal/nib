@@ -430,15 +430,25 @@ terminal — edit in one, press `r` in the terminal (or refresh the browser) to 
 link, bulleted list, numbered list, task list, horizontal rule. Every button works on
 your selection, and pressing it again toggles the formatting off.
 
-**Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save.
+**Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save, `Esc` cancel.
 
 **Drag a file onto the editor** and it is attached — or paste one, so a screenshot goes
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
 Images show in the Preview tab. See [images and files](#images-and-files).
 
-**Write / Preview tabs** while editing, and a clean read-only view after saving with an
-Edit button to go back. There's a search box, a light/dark toggle that follows your system
-by default, and deleting asks for confirmation.
+**Click the text and you are typing.** A note opens rendered, because rendered is how a
+note is worth reading. Click any part of it — a paragraph, a row well down a table, a
+bullet nested three deep — and the pane becomes its Markdown with the cursor already on
+the line you pointed at. There is no Edit button to find first.
+
+**It saves as you go,** about a second after you stop typing and again when you leave the
+note, so nothing is lost if you never press anything. `Ctrl+S` still saves on demand and
+`Esc` still discards, exactly as they do in the terminal editor; `Esc` puts back whatever
+was there when you started writing, even if an autosave has already run. The badge by the
+title reads Editing, Saving… or Saved so you can always tell which.
+
+**Write / Preview tabs** while editing. There's a search box, a light/dark toggle that
+follows your system by default, and deleting asks for confirmation.
 
 **The trash**, the same one the terminal shows. The bin at the foot of the sidebar
 carries a count of what is recoverable and opens it: Restore on each note, a permanent
