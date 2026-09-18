@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { createAutosave } from '@/lib/autosave';
 import NoteList from '@/components/NoteList';
-import Editor from '@/components/Editor';
-import SavedView from '@/components/SavedView';
+import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
 import { Card } from '@/components/ui/card';
 import { TrashDialog } from '@/components/TrashDialog';
@@ -21,11 +21,14 @@ const blankNote = () => ({ id: null, title: '', content: '', updated_at: null })
 
 export default function App() {
   const [notes, setNotes] = useState([]);
-  const [draft, setDraft] = useState(null);     // note open in the editor
-  const [viewing, setViewing] = useState(null); // note open read-only
+  const [note, setNote] = useState(null);       // the open note
+  const [mode, setMode] = useState('read');     // 'read' | 'write'
+  const [baseline, setBaseline] = useState(''); // content when write mode began
+  const [caretAt, setCaretAt] = useState(null); // {offset} for one click
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState('saved'); // 'saved' | 'editing' | 'saving'
   const [trash, setTrash] = useState([]);
   const [trashOpen, setTrashOpen] = useState(false);
   // Ids of deletes, newest last, so undo can walk back through them.
@@ -47,46 +50,115 @@ export default function App() {
     }
   }, []);
 
+  // The list sorts by most-recently-edited, so an autosave would lift the open
+  // note to the top mid-sentence and move the row being looked at. Hold the
+  // refresh until writing is done; leaving write mode runs this again.
   useEffect(() => {
+    if (mode === 'write') return;
     const t = setTimeout(() => refresh(query), 200);
     return () => clearTimeout(t);
-  }, [query, refresh]);
+  }, [query, refresh, mode]);
 
   useEffect(() => {
     refreshTrash();
   }, [refreshTrash]);
 
   const startNew = () => {
-    setViewing(null);
-    setDraft(blankNote());
+    setNote(blankNote());
+    setBaseline('');
+    setMode('write');
+    setCaretAt({ offset: 0 });
     setDirty(false);
   };
 
-  const save = async () => {
-    if (!draft) return;
+  // The latest note, readable from a timer that fired before the last render.
+  const noteRef = useRef(null);
+  noteRef.current = note;
+
+  const write = useCallback(async ({ quiet }) => {
+    const current = noteRef.current;
+    if (!current) return;
+    setStatus('saving');
     setSaving(true);
     try {
-      const payload = { title: draft.title, content: draft.content };
-      const saved = draft.id
-        ? await updateNote(draft.id, payload)
+      const payload = { title: current.title, content: current.content };
+      const saved = current.id
+        ? await updateNote(current.id, payload)
         : await createNote(payload);
       setDirty(false);
-      setDraft(null);
-      setViewing(saved);
-      await refresh(query);
-      toast.success(draft.id ? 'Note saved' : 'Note created');
+      setStatus('saved');
+      // Keep the id a create just handed back, but not a stale body: the
+      // note may have been typed into while the request was in flight.
+      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : saved));
+      if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
+      return saved;
     } catch (e) {
+      setStatus('editing');
       toast.error('Save failed', { description: e.message });
     } finally {
       setSaving(false);
     }
+  }, []);
+
+  const autosave = useMemo(
+    () => createAutosave({ delay: 800, save: () => write({ quiet: true }) }),
+    [write],
+  );
+
+  const save = () => write({ quiet: false });
+
+  // A pending save is the one thing a reload can lose. This effect has to sit
+  // below `autosave`: its dependency array is read while rendering, so naming
+  // `autosave` above the useMemo that builds it is a use-before-init crash.
+  useEffect(() => {
+    const onLeave = (e) => {
+      if (!autosave.pending()) return;
+      autosave.flush();
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [autosave]);
+
+  // Clicking the prose is the whole gesture: the note stays put, the pane
+  // turns into its source, and the cursor lands where the click did.
+  const openAt = (offset) => {
+    setBaseline(note.content);
+    setMode('write');
+    // Always a fresh object, so clicking the same block twice moves the cursor
+    // back to it. A null offset still focuses; it just does not aim.
+    setCaretAt({ offset });
+  };
+
+  // Esc puts back what was there when writing began and saves that, so the
+  // discard is one more save rather than a second mechanism — and it survives
+  // a reload, which matters now that typing alone writes to disk.
+  const cancel = async () => {
+    autosave.cancel();
+    setCaretAt(null);
+    setMode('read');
+    if (!note || note.content === baseline) return;
+    const restored = { ...note, content: baseline };
+    setNote(restored);
+    setDirty(false);
+    setStatus('saving');
+    noteRef.current = restored;
+    await write({ quiet: true });
+  };
+
+  const saveAndRead = async () => {
+    autosave.cancel();
+    await save();
+    setMode('read');
+    setCaretAt(null);
   };
 
   const remove = async (id) => {
     try {
       await deleteNote(id);
-      setDraft(null);
-      setViewing(null);
+      setNote(null);
+      setMode('read');
       setDeleted((d) => [...d, id]);
       await Promise.all([refresh(query), refreshTrash()]);
       toast.success('Moved to trash', {
@@ -100,10 +172,11 @@ export default function App() {
   // Restoring is shared by the undo action and the trash dialog.
   const restore = async (id) => {
     try {
-      const note = await restoreNote(id);
+      const restored = await restoreNote(id);
       setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
-      setViewing(note);
+      setNote(restored);
+      setMode('read');
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });
@@ -145,10 +218,16 @@ export default function App() {
     <div className="flex h-svh flex-col md:flex-row">
       <NoteList
         notes={notes}
-        selectedId={viewing?.id ?? draft?.id}
-        onSelect={(note) => {
-          setDraft(null);
-          setViewing(note);
+        selectedId={note?.id}
+        onSelect={async (next) => {
+          // A save waiting on a timer belongs to the note being left, so it
+          // has to land before the open note changes under it.
+          await autosave.flush();
+          setNote(next);
+          setMode('read');
+          setCaretAt(null);
+          setDirty(false);
+          setStatus('saved');
         }}
         onNew={startNew}
         query={query}
@@ -161,27 +240,25 @@ export default function App() {
 
       <main className="flex min-h-0 flex-1 flex-col p-4 md:p-6">
         <Card className="flex min-h-0 flex-1 flex-col gap-0 p-5">
-          {draft ? (
-            <Editor
-              note={draft}
+          {note ? (
+            <NotePane
+              note={note}
+              mode={mode}
+              caretAt={caretAt}
+              status={status}
+              onOpenAt={openAt}
               onChange={(next) => {
-                setDraft(next);
+                setNote(next);
                 setDirty(true);
+                setStatus('editing');
+                noteRef.current = next;
+                autosave.schedule(next);
               }}
-              onSave={save}
+              onSave={saveAndRead}
+              onCancel={cancel}
               onDelete={remove}
               saving={saving}
-              dirty={dirty || !draft.id}
-            />
-          ) : viewing ? (
-            <SavedView
-              note={viewing}
-              onDelete={remove}
-              onEdit={() => {
-                setDraft(viewing);
-                setViewing(null);
-                setDirty(false);
-              }}
+              dirty={dirty || !note.id}
             />
           ) : (
             <EmptyState onNew={startNew} />

@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { actions } from '@/lib/editorActions';
 import { uploadAttachment } from '@/lib/api';
 import { renderMarkdown } from '@/lib/markdown';
+import { scrollCaretIntoView } from '@/lib/sourceMap';
 
 const TOOLBAR = [
   [
@@ -49,7 +50,9 @@ const TOOLBAR = [
   ],
 ];
 
-export default function Editor({ note, onChange, onSave, onDelete, saving, dirty }) {
+export default function Editor({
+  note, onChange, onSave, onCancel, onDelete, saving, dirty, caretAt, status,
+}) {
   const [tab, setTab] = useState('write');
   const [dropping, setDropping] = useState(false);
   const textareaRef = useRef(null);
@@ -107,6 +110,11 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
   };
 
   const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+      return;
+    }
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
     const key = e.key.toLowerCase();
@@ -125,6 +133,22 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
   // Always land on Write when a different note opens.
   useEffect(() => setTab('write'), [note.id]);
 
+  // Land the cursor where the reader clicked, once per click. caretAt is a
+  // fresh object each time so that clicking the same block twice still moves
+  // the cursor back to it.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el || !caretAt) return;
+    el.focus();
+    // A click that landed on padding rather than on a block says where to
+    // start writing but not where: focus, and leave the cursor alone rather
+    // than throwing it to the top of the note.
+    if (caretAt.offset === null) return;
+    const at = Math.min(caretAt.offset, el.value.length);
+    el.setSelectionRange(at, at);
+    scrollCaretIntoView(el, at);
+  }, [caretAt]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -135,11 +159,11 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
           onChange={(e) => onChange({ ...note, title: e.target.value })}
         />
         <div className="flex items-center gap-2">
-          {dirty && (
-            <Badge variant="secondary" className="text-muted-foreground">
-              Unsaved
-            </Badge>
-          )}
+          {/* Saving is no longer something you have to remember to do, so the
+              badge reports it rather than nagging about it. */}
+          <Badge variant="secondary" className="text-muted-foreground">
+            {{ editing: 'Editing', saving: 'Saving…', saved: 'Saved' }[status]}
+          </Badge>
           <Button onClick={onSave} disabled={saving || !dirty}>
             <Save /> {saving ? 'Saving…' : note.id ? 'Save' : 'Create'}
           </Button>
@@ -228,8 +252,9 @@ export default function Editor({ note, onChange, onSave, onDelete, saving, dirty
           </div>
 
           <p className="text-muted-foreground text-xs">
-            Markdown supported · <kbd className="font-mono">Ctrl+S</kbd> to save ·
-            drop or paste a file to attach it
+            Markdown supported · <kbd className="font-mono">Ctrl+S</kbd> to save ·{' '}
+            <kbd className="font-mono">Esc</kbd> to cancel · drop or paste a file to
+            attach it
           </p>
         </TabsContent>
 
