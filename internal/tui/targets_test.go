@@ -8,10 +8,14 @@ import (
 )
 
 // The renderer tags link text as it renders and the escapes are wrapped around
-// those tags by position afterwards, so one target must exist for each tag. An
+// those tags afterwards, so the tags and the targets have to stay in step. An
 // attachment is the case that broke this: it is a link in the note but a chip
 // in the preview, and while chips were plain text every link that followed one
 // was paired with the wrong destination.
+//
+// The tags are not one per link - the renderer tags each separately styled
+// piece of a link's text - so what has to hold is that the tags belonging to
+// each target spell that target's text out, in order.
 func TestEveryTaggedLinkHasATarget(t *testing.T) {
 	var m model
 	for _, md := range []string{
@@ -21,11 +25,79 @@ func TestEveryTaggedLinkHasATarget(t *testing.T) {
 		"![pic](attachments/1556d7a7cbcc1ec8.pdf)",
 		"[alpha](https://alpha.test) [doc](attachments/1556d7a7cbcc1ec8.pdf) [omega](https://omega.test)",
 		"![shot](attachments/4b0cbf08821cb6a1.png) then [after](https://after.test)",
+		"[file_example_MOV_480_700kB.mov](attachments/8637a447a955133f.mov)",
+		"[a *b* c](https://emphasis.test)",
 	} {
 		prepared, targets := m.prepareForRender(md)
 		out := renderWithMarkers(t, separateListGroups(prepared))
-		if got := strings.Count(out, linkOpenMarker); got != len(targets) {
-			t.Errorf("%q: %d tagged links but %d targets", md, got, len(targets))
+
+		rest := out
+		for i, want := range targets {
+			key := linkKey(want.renderedText())
+			got := ""
+			for got != key {
+				start := strings.Index(rest, linkOpenMarker)
+				end := strings.Index(rest, linkCloseMarker)
+				if start < 0 || end < start {
+					t.Fatalf("%q: target %d (%q) ran out of tags, had %q",
+						md, i, key, got)
+				}
+				got += linkKey(rest[start+len(linkOpenMarker) : end])
+				rest = rest[end+len(linkCloseMarker):]
+				if len(got) > len(key) {
+					t.Fatalf("%q: target %d wanted %q, tags spelled %q", md, i, key, got)
+				}
+			}
+		}
+		if strings.Contains(rest, linkOpenMarker) {
+			t.Errorf("%q: tags left over after every target was matched", md)
+		}
+	}
+}
+
+// A filename is text, not markup. The renderer splits a link's text at every
+// markdown delimiter inside it, so `file_example_MOV.mov` used to arrive in
+// five pieces - and since each piece took the next target, the four links
+// after it opened somebody else's file and the last ones opened nothing.
+func TestAFilenameWithUnderscoresDoesNotStealTheNextTarget(t *testing.T) {
+	out := renderPreviewBody(t,
+		"[file_example_MOV_480_700kB.mov](attachments/8637a447a955133f.mov)\n\n"+
+			"[omega](https://omega.test)", "x")
+
+	if !strings.Contains(out, ";https://omega.test\x1b\\") {
+		t.Errorf("the link after the underscored filename lost its target:\n%q", out)
+	}
+	if got := stripEscapes(out); !strings.Contains(got, "file file_example_MOV_480_700kB.mov") {
+		t.Errorf("the filename is not shown intact:\n%q", got)
+	}
+}
+
+// The same splitting happens for every other delimiter, and those ones also
+// swallowed part of the name on the way to the screen.
+func TestAFilenameIsShownExactlyAsItIs(t *testing.T) {
+	for _, name := range []string{
+		"star*x*y.png",
+		"under_score.png",
+		"tilde~x~y.png",
+		"tick`x`y.png",
+		"amp&x&#42;y.png",
+	} {
+		out := stripEscapes(renderPreviewBody(t,
+			"["+name+"](attachments/4b0cbf08821cb6a1.png)", "x"))
+		if !strings.Contains(out, "file "+name) {
+			t.Errorf("%q is not shown as itself:\n%q", name, out)
+		}
+	}
+}
+
+// Two links with nothing between them tag as two runs with nothing printable
+// between them either, so runs cannot simply be merged when they are adjacent.
+func TestAdjacentLinksKeepTheirOwnTargets(t *testing.T) {
+	out := renderPreviewBody(t, "[one](https://one.test)[two](https://two.test)", "x")
+
+	for i, want := range []string{"https://one.test", "https://two.test"} {
+		if !strings.Contains(out, "\x1b]8;id="+string(rune('1'+i))+";"+want+"\x1b\\") {
+			t.Errorf("link %d did not get %s:\n%q", i+1, want, out)
 		}
 	}
 }
