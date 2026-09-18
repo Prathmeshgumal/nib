@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { createAutosave } from '@/lib/autosave';
 import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
@@ -27,6 +28,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState('saved'); // 'saved' | 'editing' | 'saving'
   const [trash, setTrash] = useState([]);
   const [trashOpen, setTrashOpen] = useState(false);
   // Ids of deletes, newest last, so undo can walk back through them.
@@ -48,10 +50,14 @@ export default function App() {
     }
   }, []);
 
+  // The list sorts by most-recently-edited, so an autosave would lift the open
+  // note to the top mid-sentence and move the row being looked at. Hold the
+  // refresh until writing is done; leaving write mode runs this again.
   useEffect(() => {
+    if (mode === 'write') return;
     const t = setTimeout(() => refresh(query), 200);
     return () => clearTimeout(t);
-  }, [query, refresh]);
+  }, [query, refresh, mode]);
 
   useEffect(() => {
     refreshTrash();
@@ -65,25 +71,55 @@ export default function App() {
     setDirty(false);
   };
 
-  const save = async () => {
-    if (!note) return;
+  // The latest note, readable from a timer that fired before the last render.
+  const noteRef = useRef(null);
+  noteRef.current = note;
+
+  const write = useCallback(async ({ quiet }) => {
+    const current = noteRef.current;
+    if (!current) return;
+    setStatus('saving');
     setSaving(true);
     try {
-      const payload = { title: note.title, content: note.content };
-      const saved = note.id
-        ? await updateNote(note.id, payload)
+      const payload = { title: current.title, content: current.content };
+      const saved = current.id
+        ? await updateNote(current.id, payload)
         : await createNote(payload);
       setDirty(false);
-      setNote(saved);
-      await refresh(query);
-      toast.success(note.id ? 'Note saved' : 'Note created');
+      setStatus('saved');
+      // Keep the id a create just handed back, but not a stale body: the
+      // note may have been typed into while the request was in flight.
+      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : saved));
+      if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
       return saved;
     } catch (e) {
+      setStatus('editing');
       toast.error('Save failed', { description: e.message });
     } finally {
       setSaving(false);
     }
-  };
+  }, []);
+
+  const autosave = useMemo(
+    () => createAutosave({ delay: 800, save: () => write({ quiet: true }) }),
+    [write],
+  );
+
+  const save = () => write({ quiet: false });
+
+  // A pending save is the one thing a reload can lose. This effect has to sit
+  // below `autosave`: its dependency array is read while rendering, so naming
+  // `autosave` above the useMemo that builds it is a use-before-init crash.
+  useEffect(() => {
+    const onLeave = (e) => {
+      if (!autosave.pending()) return;
+      autosave.flush();
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [autosave]);
 
   // Clicking the prose is the whole gesture: the note stays put, the pane
   // turns into its source, and the cursor lands where the click did.
@@ -95,17 +131,24 @@ export default function App() {
     setCaretAt({ offset });
   };
 
-  // Esc puts back what was there when writing began, so a discard costs
-  // nothing more than the switch back to reading.
+  // Esc puts back what was there when writing began and saves that, so the
+  // discard is one more save rather than a second mechanism — and it survives
+  // a reload, which matters now that typing alone writes to disk.
   const cancel = async () => {
+    autosave.cancel();
     setCaretAt(null);
     setMode('read');
-    if (note.content === baseline) return;
-    setNote((n) => ({ ...n, content: baseline }));
+    if (!note || note.content === baseline) return;
+    const restored = { ...note, content: baseline };
+    setNote(restored);
     setDirty(false);
+    setStatus('saving');
+    noteRef.current = restored;
+    await write({ quiet: true });
   };
 
   const saveAndRead = async () => {
+    autosave.cancel();
     await save();
     setMode('read');
     setCaretAt(null);
@@ -176,11 +219,15 @@ export default function App() {
       <NoteList
         notes={notes}
         selectedId={note?.id}
-        onSelect={(next) => {
+        onSelect={async (next) => {
+          // A save waiting on a timer belongs to the note being left, so it
+          // has to land before the open note changes under it.
+          await autosave.flush();
           setNote(next);
           setMode('read');
           setCaretAt(null);
           setDirty(false);
+          setStatus('saved');
         }}
         onNew={startNew}
         query={query}
@@ -198,10 +245,14 @@ export default function App() {
               note={note}
               mode={mode}
               caretAt={caretAt}
+              status={status}
               onOpenAt={openAt}
               onChange={(next) => {
                 setNote(next);
                 setDirty(true);
+                setStatus('editing');
+                noteRef.current = next;
+                autosave.schedule(next);
               }}
               onSave={saveAndRead}
               onCancel={cancel}

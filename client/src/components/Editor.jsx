@@ -51,7 +51,7 @@ const TOOLBAR = [
 ];
 
 export default function Editor({
-  note, onChange, onSave, onCancel, onDelete, saving, dirty, caretAt,
+  note, onChange, onSave, onCancel, onDelete, saving, dirty, caretAt, status,
 }) {
   const [tab, setTab] = useState('write');
   const [dropping, setDropping] = useState(false);
@@ -159,11 +159,11 @@ export default function Editor({
           onChange={(e) => onChange({ ...note, title: e.target.value })}
         />
         <div className="flex items-center gap-2">
-          {dirty && (
-            <Badge variant="secondary" className="text-muted-foreground">
-              Unsaved
-            </Badge>
-          )}
+          {/* Saving is no longer something you have to remember to do, so the
+              badge reports it rather than nagging about it. */}
+          <Badge variant="secondary" className="text-muted-foreground">
+            {{ editing: 'Editing', saving: 'Saving…', saved: 'Saved' }[status]}
+          </Badge>
           <Button onClick={onSave} disabled={saving || !dirty}>
             <Save /> {saving ? 'Saving…' : note.id ? 'Save' : 'Create'}
           </Button>
