@@ -36,6 +36,16 @@ type Target struct {
 	Kind  targetKind
 }
 
+// renderedText is the text the renderer draws for this target: the chip's tag
+// and name, or a plain link's own text. linkifyRendered matches the runs the
+// renderer tags against this, so it has to mirror what prepareForRender emits.
+func (t Target) renderedText() string {
+	if t.Kind == targetLink {
+		return t.Label
+	}
+	return t.Kind.tag() + " " + t.Label
+}
+
 // hyperlinkURL is Open written so a terminal will accept it inside an OSC 8
 // escape. An attachment resolves to a path on disk, which needs a scheme
 // before a terminal will treat it as a link.
@@ -55,6 +65,30 @@ func (t Target) clickable() bool {
 // storedName matches the name an attachment is saved under, so a link that
 // merely starts with "attachments/" is not mistaken for one.
 var storedName = regexp.MustCompile(`^[0-9a-f]{16}\.[a-z0-9]{1,8}$`)
+
+// literal hides the characters the renderer would otherwise read as markup, so
+// a filename is shown exactly as it is on disk. Without it a file called
+// star*x*y.png loses its asterisks on the way to the screen, and one with
+// backticks in its name has the middle of it set as code.
+//
+// Character references are used rather than backslashes because a backslash
+// does not escape a tilde here - the strikethrough extension takes the tilde
+// first, and the backslash is left on the screen. A reference is read before
+// any of that and comes out as the one character it names.
+//
+// The ampersand has to go first, so that a file whose name really does contain
+// "&#42;" keeps it. A replacer never rescans what it has just written, so the
+// references below are safe from it.
+//
+// Brackets are left alone: they are already escaped where the note's markdown
+// is written, in internal/attach.
+var literal = strings.NewReplacer(
+	"&", "&amp;",
+	"*", "&#42;",
+	"_", "&#95;",
+	"~", "&#126;",
+	"`", "&#96;",
+).Replace
 
 // prepareForRender rewrites a note for the renderer and returns the targets
 // of every link the renderer will mark, in the order it will mark them.
@@ -98,7 +132,7 @@ func (m model) prepareForRender(md string) (string, []Target) {
 				// renderer tags it and it can be made clickable like any other.
 				// The kind is spelled out in front of the name because a
 				// terminal cannot draw the file to say what it is.
-				return "[" + kind.tag() + " " + name + "](#)"
+				return "[" + kind.tag() + " " + literal(name) + "](#)"
 			}
 
 			if image {
