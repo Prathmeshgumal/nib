@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Bold,
   Code,
@@ -11,6 +11,7 @@ import {
   Minus,
   Quote,
   Save,
+  SquareCheck,
   SquareCode,
   Strikethrough,
   Trash2,
@@ -28,6 +29,7 @@ import { actions } from '@/lib/editorActions';
 import { uploadAttachment } from '@/lib/api';
 import { renderMarkdown } from '@/lib/markdown';
 import { scrollCaretIntoView } from '@/lib/sourceMap';
+import { continuation, enterInList, plainBreak } from '@/lib/listContinuation';
 
 const TOOLBAR = [
   [
@@ -46,6 +48,7 @@ const TOOLBAR = [
     { key: 'bullet', icon: List, label: 'Bulleted list' },
     { key: 'numbered', icon: ListOrdered, label: 'Numbered list' },
     { key: 'task', icon: ListTodo, label: 'Task list' },
+    { key: 'toggleTask', icon: SquareCheck, label: 'Tick / untick', hint: 'Ctrl+Shift+X' },
     { key: 'hr', icon: Minus, label: 'Horizontal rule' },
   ],
 ];
@@ -57,6 +60,24 @@ export default function Editor({
   const [dropping, setDropping] = useState(false);
   const textareaRef = useRef(null);
 
+  // Where the cursor must go once React has committed the new value. The
+  // textarea is controlled, so setting a selection before the commit is undone
+  // by the re-render — and the next character typed lands at the end instead.
+  const pendingSelection = useRef(null);
+
+  useLayoutEffect(() => {
+    const at = pendingSelection.current;
+    const el = textareaRef.current;
+    if (!at || !el) return;
+    pendingSelection.current = null;
+    el.focus();
+    el.setSelectionRange(at.start, at.end);
+  });
+
+  const select = (start, end = start) => {
+    pendingSelection.current = { start, end };
+  };
+
   const apply = (key) => {
     const el = textareaRef.current;
     if (!el) return;
@@ -66,10 +87,7 @@ export default function Editor({
       end: el.selectionEnd,
     });
     onChange({ ...note, content: next.value });
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(next.start, next.end);
-    });
+    select(next.start, next.end);
   };
 
   // Put text where the cursor is, or at the end if the textarea has never
@@ -83,12 +101,7 @@ export default function Editor({
     // part of that paragraph.
     const lead = before === '' || before.endsWith('\n') ? '' : '\n';
     onChange({ ...note, content: `${before}${lead}${text}\n${after}` });
-    requestAnimationFrame(() => {
-      if (!el) return;
-      el.focus();
-      const caret = before.length + lead.length + text.length + 1;
-      el.setSelectionRange(caret, caret);
-    });
+    select(before.length + lead.length + text.length + 1);
   };
 
   // Drops and pastes share this, so a saved file and a screenshot behave the
@@ -109,21 +122,82 @@ export default function Editor({
     }
   };
 
+  // Replace the whole value and put the cursor somewhere exact. Used by the
+  // keys that edit text directly rather than through an action.
+  const put = (value, caret) => {
+    onChange({ ...note, content: value });
+    select(caret);
+  };
+
   const onKeyDown = (e) => {
+    const el = textareaRef.current;
+    const mod = e.metaKey || e.ctrlKey;
+
     if (e.key === 'Escape') {
       e.preventDefault();
       onCancel();
       return;
     }
-    const mod = e.metaKey || e.ctrlKey;
+
+    // Enter carries a list on; Shift+Enter breaks the line and leaves it
+    // alone. A terminal sends the same byte for both, which is why the TUI
+    // spends alt+enter on this and the browser does not have to.
+    if (e.key === 'Enter' && !mod && el) {
+      e.preventDefault();
+      const { value, caret } = e.shiftKey
+        ? plainBreak(note.content, el.selectionStart, el.selectionEnd)
+        : enterInList(note.content, el.selectionStart, el.selectionEnd);
+      put(value, caret);
+      return;
+    }
+
+    // Tab indents the line rather than leaving the textarea. The terminal
+    // cannot bind this at all, since ctrl+i *is* Tab.
+    if (e.key === 'Tab' && !mod && el) {
+      e.preventDefault();
+      const { selectionStart: from, selectionEnd: to } = el;
+      const out = actions[e.shiftKey ? 'outdent' : 'indent']({
+        value: note.content, start: from, end: to,
+      });
+      onChange({ ...note, content: out.value });
+      if (from !== to) {
+        // A selection stays selected, so Tab can be pressed again.
+        select(out.start, out.end);
+      } else {
+        // A plain cursor keeps its place in the line rather than selecting it,
+        // which would make the next character typed replace the whole line.
+        const shift = out.value.length - note.content.length;
+        select(Math.max(out.start, from + shift));
+      }
+      return;
+    }
+
+    // Backspace at the start of an empty item clears the marker instead of
+    // eating the line break above it.
+    if (e.key === 'Backspace' && !mod && el && el.selectionStart === el.selectionEnd) {
+      const at = el.selectionStart;
+      const lineStart = note.content.lastIndexOf('\n', at - 1) + 1;
+      const line = note.content.slice(lineStart, at);
+      if (line !== '' && continuation(line).endList) {
+        e.preventDefault();
+        put(note.content.slice(0, lineStart) + note.content.slice(at), lineStart);
+        return;
+      }
+    }
+
     if (!mod) return;
     const key = e.key.toLowerCase();
-    if (key === 's') {
+    if (key === 's' && !e.shiftKey) {
       e.preventDefault();
       onSave();
       return;
     }
-    const shortcut = { b: 'bold', i: 'italic', k: 'link' }[key];
+    // Ctrl+Shift+… for the actions a terminal has to reach with alt+, because
+    // alt+letter opens the menu bar in some browsers.
+    const shortcut = e.shiftKey
+      ? { s: 'strike', c: 'code', f: 'codeBlock', q: 'quote', l: 'bullet',
+          o: 'numbered', t: 'task', x: 'toggleTask', r: 'hr', h: 'heading' }[key]
+      : { b: 'bold', i: 'italic', k: 'link' }[key];
     if (shortcut) {
       e.preventDefault();
       apply(shortcut);
@@ -252,8 +326,11 @@ export default function Editor({
           </div>
 
           <p className="text-muted-foreground text-xs">
-            Markdown supported · <kbd className="font-mono">Ctrl+S</kbd> to save ·{' '}
-            <kbd className="font-mono">Esc</kbd> to cancel · drop or paste a file to
+            <kbd className="font-mono">↵</kbd> carries a list on ·{' '}
+            <kbd className="font-mono">Shift+↵</kbd> plain line break ·{' '}
+            <kbd className="font-mono">Tab</kbd> indents ·{' '}
+            <kbd className="font-mono">Ctrl+S</kbd> saves ·{' '}
+            <kbd className="font-mono">Esc</kbd> cancels · drop or paste a file to
             attach it
           </p>
         </TabsContent>
