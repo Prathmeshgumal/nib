@@ -472,7 +472,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "R":
 		if n := m.selected(); n != nil {
 			m.mode = modeRaw
-			m.rawView.SetContent(n.Content)
+			m.setRawSource(n.Content)
 			m.rawView.GotoTop()
 		}
 	case "enter":

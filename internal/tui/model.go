@@ -19,6 +19,8 @@ import (
 	"github.com/charmbracelet/glamour/ansi"
 	"github.com/charmbracelet/glamour/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/wrap"
 
 	"github.com/Prathmeshgumal/nib/internal/store"
 	"github.com/Prathmeshgumal/nib/internal/web"
@@ -63,6 +65,7 @@ type model struct {
 	previewDraft bool // showing the draft rendered, rather than its source
 	draft        viewport.Model
 	rawView      viewport.Model // full-screen Markdown source, for selecting
+	rawSource    string         // that view's text before wrapping, to rewrap on resize
 	help         viewport.Model // the key list, which is longer than a screen
 
 	server *web.Server
@@ -220,6 +223,9 @@ func (m *model) layout() {
 	// else. One line is left for the hint along the bottom.
 	m.rawView.Width = m.width
 	m.rawView.Height = m.height - 1
+	if m.rawSource != "" {
+		m.rawView.SetContent(wrapSource(m.rawSource, m.rawView.Width))
+	}
 
 	// The key list is longer than any terminal, so it scrolls.
 	m.help.Width = m.width - 4
@@ -245,12 +251,12 @@ func (m *model) renderPreview() {
 		width = 20
 	}
 
-	if cached, ok := m.rendered[n.ID+"\x00"+n.UpdatedAt]; ok {
-		m.preview.SetContent(cached)
-		m.preview.GotoTop()
-		return
-	}
-
+	// The width is settled before the cache is consulted, not after. Cached
+	// output was wrapped for the width it was rendered at, so looking it up
+	// first returns the old wrapping and returns before the check below could
+	// have thrown it away. That is what left the first frame wrapped narrow:
+	// a note rendered once before the terminal's real size arrived, and every
+	// later render was a cache hit until an edit changed the key.
 	if m.renderer == nil || m.rendererWidth != width {
 		r, err := newRenderer(m.glamourStyle, width-2)
 		if err != nil {
@@ -259,8 +265,13 @@ func (m *model) renderPreview() {
 		}
 		m.renderer = r
 		m.rendererWidth = width
-		// Cached output was wrapped for the old width.
 		m.rendered = map[string]string{}
+	}
+
+	if cached, ok := m.rendered[n.ID+"\x00"+n.UpdatedAt]; ok {
+		m.preview.SetContent(cached)
+		m.preview.GotoTop()
+		return
 	}
 
 	body := stripDerivedTitle(n.Content, n.Title)
@@ -813,4 +824,24 @@ func relativeTime(iso string) string {
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
+}
+
+// setRawSource fills the full-screen source view, wrapped to the window.
+//
+// A viewport clips what does not fit rather than wrapping it, so a long line
+// used to run off the right edge with no way to see or select the rest of it.
+// Wrapping is done here rather than left to the terminal because the alternate
+// screen draws every line to a fixed width, so nothing soft-wraps on its own.
+func (m *model) setRawSource(src string) {
+	m.rawSource = src
+	m.rawView.SetContent(wrapSource(src, m.rawView.Width))
+}
+
+// wrapSource breaks on spaces where it can and mid-word where it must, so a
+// long URL cannot push past the edge either.
+func wrapSource(s string, width int) string {
+	if width < 10 {
+		return s
+	}
+	return wrap.String(wordwrap.String(s, width), width)
 }
