@@ -83,3 +83,15 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Attachment players. The prose styles give an <img> a sensible size on its
+   own, but know nothing about a <video>, so say it here: never wider than the
+   note, and dark enough that the letterboxing reads as part of the player. */
+@layer components {
+  .nib-video {
+    @apply my-4 block max-h-[70vh] w-full max-w-2xl rounded-md bg-black;
+  }
+  .nib-audio {
+    @apply my-4 block w-full max-w-md;
+  }
+}
