@@ -224,6 +224,11 @@ returns to your terminal and no modifier is needed.
 The other reason `R` exists is that the normal view draws borders around the text, and a
 selection there would carry those along with it.
 
+**Long lines wrap.** A line wider than the window is broken onto the next row so none of
+it is hidden. Unlike your terminal's own wrapping, these breaks are real newlines, so a
+selection copies them with it — worth knowing if you are copying a long paragraph back
+into an editor that would rather have it as one line.
+
 ### Writing
 
 | Key | Does |
