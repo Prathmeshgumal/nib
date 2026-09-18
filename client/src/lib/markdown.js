@@ -5,6 +5,49 @@ import { isViewable, kindOf, rawHref, storedName, viewerHref } from '@/lib/attac
 
 marked.setOptions({ gfm: true, breaks: true });
 
+// player builds the whole of what replaces a media link: the player, and under
+// it the filename it came from.
+//
+// The caption is not decoration. A player on its own is anonymous, so the
+// nearest link above it reads as its label - which is how a note holding a
+// .docx link, a clip, a .pdf link and a recording ends up looking as though
+// every name sits against the wrong file. The name belongs to the player.
+//
+// Everything here is phrasing content - spans, not <figure> - because the
+// replacement happens inside a <p>. This tree is serialized to a string and
+// re-parsed by the caller, and a block element inside a paragraph would be
+// torn out of it on that second parse, taking the paragraph's stamped source
+// offset with it.
+function player(kind, name, label) {
+  const box = document.createElement('span');
+  box.className = 'nib-media';
+
+  const el = document.createElement(kind);
+  el.setAttribute('controls', '');
+  // Enough to draw the timeline and a first frame without pulling the whole
+  // file down for a note that is only being skimmed.
+  el.setAttribute('preload', 'metadata');
+  el.setAttribute('src', rawHref(name));
+  el.className = kind === 'video' ? 'nib-video' : 'nib-audio';
+
+  const caption = document.createElement('span');
+  // `not-prose` is how the typography plugin is told to keep its hands off a
+  // subtree. Without it the caption's link is styled as prose body copy - the
+  // plugin's rules sit in the utilities layer, which wins over ours whatever
+  // the selector, so there is nothing to out-specify.
+  caption.className = 'nib-caption not-prose';
+  // The caption is also how you get the file itself, since the link that used
+  // to offer that is now a player.
+  const save = document.createElement('a');
+  save.setAttribute('href', rawHref(name));
+  save.setAttribute('download', label || name);
+  save.textContent = label || name;
+  caption.append(save);
+
+  box.append(el, caption);
+  return box;
+}
+
 // upgradeAttachments turns the plain links the note stores into whatever the
 // browser can actually do with each file.
 //
@@ -24,14 +67,7 @@ function upgradeAttachments(host) {
     // Media plays where it sits. Sending the reader to another tab to watch a
     // clip they attached to a paragraph is a step backwards from a link.
     if (kind === 'video' || kind === 'audio') {
-      const player = document.createElement(kind);
-      player.setAttribute('controls', '');
-      // Enough to draw the timeline and a first frame without pulling the
-      // whole file down for a note that is only being skimmed.
-      player.setAttribute('preload', 'metadata');
-      player.setAttribute('src', rawHref(name));
-      player.className = kind === 'video' ? 'nib-video' : 'nib-audio';
-      link.replaceWith(player);
+      link.replaceWith(player(kind, name, link.textContent.trim()));
       continue;
     }
 

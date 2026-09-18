@@ -54,13 +54,55 @@ it('plays a video where it sits, instead of linking to it', () => {
   expect(video).not.toBe(null);
   expect(video.getAttribute('src')).toBe(`/attachments/${ID}.mp4`);
   expect(video.hasAttribute('controls')).toBe(true);
-  expect(host.querySelector('a')).toBe(null);
 });
 
 it('plays audio where it sits too', () => {
   const host = parse(renderMarkdown(`[song.mp3](attachments/${ID}.mp3)`));
   expect(host.querySelector('audio').getAttribute('src'))
     .toBe(`/attachments/${ID}.mp3`);
+});
+
+// A player with no name is anonymous, so the nearest link above it reads as
+// its label - which is how every filename in a note ends up looking as though
+// it belongs to the wrong file.
+it('keeps the filename under the player', () => {
+  const host = parse(renderMarkdown(`[holiday.mp4](attachments/${ID}.mp4)`));
+  const caption = host.querySelector('.nib-caption');
+  expect(caption.textContent).toBe('holiday.mp4');
+  // and it is still how you get the file itself
+  const save = caption.querySelector('a');
+  expect(save.getAttribute('href')).toBe(`/attachments/${ID}.mp4`);
+  expect(save.getAttribute('download')).toBe('holiday.mp4');
+});
+
+it('names every attachment, so no name can belong to its neighbour', () => {
+  const src = [
+    `[report.docx](attachments/${ID}.docx)`,
+    `[clip.mov](attachments/aaaaaaaaaaaaaaaa.mov)`,
+    `[paper.pdf](attachments/bbbbbbbbbbbbbbbb.pdf)`,
+    `[song.mp3](attachments/cccccccccccccccc.mp3)`,
+  ].join('\n\n');
+  const host = parse(renderMarkdown(src));
+  // every block carries its own name, in source order
+  const named = [...host.querySelectorAll('a')].map((a) => a.textContent.trim());
+  expect(named).toEqual(['report.docx', 'clip.mov', 'paper.pdf', 'song.mp3']);
+  // and the two players are labelled by the name directly beneath them
+  const players = [...host.querySelectorAll('.nib-media')];
+  expect(players.map((p) => [p.firstElementChild.tagName, p.textContent.trim()]))
+    .toEqual([['VIDEO', 'clip.mov'], ['AUDIO', 'song.mp3']]);
+});
+
+// The rendered string is handed to dangerouslySetInnerHTML, so it is parsed a
+// second time. A <figure> inside the <p> a link sits in would be hoisted out
+// of that paragraph on the second parse, taking its stamped offset with it.
+it('survives being serialized and parsed again', () => {
+  const src = `text\n\n[clip.mp4](attachments/${ID}.mp4)\n`;
+  const once = renderMarkdown(src);
+  const host = parse(once);
+  expect(host.querySelectorAll('p')).toHaveLength(2);
+  expect(host.querySelector('video').closest('p[data-src]')).not.toBe(null);
+  // reparsing changed nothing, which is what stops the offsets drifting
+  expect(host.innerHTML).toBe(once);
 });
 
 it('sends a document to the viewer tab', () => {

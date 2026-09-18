@@ -86,12 +86,32 @@
 
 /* Attachment players. The prose styles give an <img> a sensible size on its
    own, but know nothing about a <video>, so say it here: never wider than the
-   note, and dark enough that the letterboxing reads as part of the player. */
+   note, and dark enough that the letterboxing reads as part of the player.
+
+   These are spans made to behave as blocks - see the comment on `player` in
+   lib/markdown.js for why they cannot be a <figure>. */
 @layer components {
+  .nib-media {
+    @apply my-4 block;
+  }
   .nib-video {
-    @apply my-4 block max-h-[70vh] w-full max-w-2xl rounded-md bg-black;
+    @apply block max-h-[70vh] w-full max-w-2xl rounded-md bg-black;
   }
   .nib-audio {
-    @apply my-4 block w-full max-w-md;
+    @apply block w-full max-w-md;
+  }
+  /* The filename, close enough under the player to read as its label and
+     quiet enough not to compete with the prose around it. */
+  .nib-caption {
+    @apply text-muted-foreground mt-1.5 block text-sm;
+  }
+  /* A caption is a label first and a download second, so it must not look
+     like the document links beside it - that resemblance is exactly what
+     made every name in a note seem to belong to the wrong file. */
+  .nib-caption a {
+    @apply text-muted-foreground font-normal no-underline;
+  }
+  .nib-caption a:hover {
+    @apply text-foreground underline;
   }
 }
