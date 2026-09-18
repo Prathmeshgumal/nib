@@ -122,6 +122,27 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onLeave);
   }, [autosave]);
 
+  // Ctrl+S has to be caught on the window, not on the textarea. While reading
+  // there is no textarea to receive it, so the browser opened Save Page As —
+  // which cancels whatever request is in flight and surfaced as a spurious
+  // "Could not load notes / Failed to fetch".
+  const onSaveKey = useRef(null);
+  onSaveKey.current = () => {
+    if (mode === 'write') return saveAndRead();
+    return autosave.flush(); // nothing to save while reading, bar a stray timer
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod || e.shiftKey || e.key.toLowerCase() !== 's') return;
+      e.preventDefault();
+      onSaveKey.current?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Clicking the prose is the whole gesture: the note stays put, the pane
   // turns into its source, and the cursor lands where the click did.
   const openAt = (offset) => {

@@ -436,8 +436,8 @@ terminal cannot offer: **`Shift+↵`** for a line break inside an item (a termin
 same byte for it as for `↵`), and **`Tab` / `Shift+Tab`** to indent and outdent (a terminal
 spends `ctrl+i` on Tab itself). `Backspace` on an empty item clears the marker.
 
-**Tick a box without opening the editor.** Checkboxes in the rendered note are live —
-click one and it saves, with the note staying as it is.
+**Tick a box without opening the editor.** Checkboxes in the rendered note are live — a
+single click ticks one and saves, with the note staying as it is.
 
 **Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save, `Esc` cancel.
 `Ctrl+Shift+` and a letter reaches the rest: `X` tick, `L` bullets, `O` numbered, `T` task,
@@ -447,10 +447,11 @@ click one and it saves, with the note staying as it is.
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
 Images show in the Preview tab. See [images and files](#images-and-files).
 
-**Click the text and you are typing.** A note opens rendered, because rendered is how a
-note is worth reading. Click any part of it — a paragraph, a row well down a table, a
-bullet nested three deep — and the pane becomes its Markdown with the cursor already on
-the line you pointed at. There is no Edit button to find first.
+**Double-click the text and you are typing.** A note opens rendered, because rendered is
+how a note is worth reading. Double-click any part of it — a paragraph, a row well down a
+table, a bullet nested three deep — and the pane becomes its Markdown with the cursor
+already on the line you pointed at. There is no Edit button to find first. A single click
+is left for reading: selecting text, and following links.
 
 **It saves as you go,** about a second after you stop typing and again when you leave the
 note, so nothing is lost if you never press anything. `Ctrl+S` still saves on demand and

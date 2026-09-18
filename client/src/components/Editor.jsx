@@ -187,11 +187,10 @@ export default function Editor({
 
     if (!mod) return;
     const key = e.key.toLowerCase();
-    if (key === 's' && !e.shiftKey) {
-      e.preventDefault();
-      onSave();
-      return;
-    }
+    // Ctrl+S is deliberately not handled here. It is caught on the window in
+    // App, so that it also works while reading — where there is no textarea to
+    // receive it, and the browser would otherwise open Save Page As.
+    if (key === 's' && !e.shiftKey) return;
     // Ctrl+Shift+… for the actions a terminal has to reach with alt+, because
     // alt+letter opens the menu bar in some browsers.
     const shortcut = e.shiftKey
