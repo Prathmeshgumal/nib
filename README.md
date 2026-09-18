@@ -430,7 +430,18 @@ terminal — edit in one, press `r` in the terminal (or refresh the browser) to 
 link, bulleted list, numbered list, task list, horizontal rule. Every button works on
 your selection, and pressing it again toggles the formatting off.
 
+**Lists carry on here too.** `↵` at the end of an item starts the next one, exactly as
+[in the terminal](#lists-carry-on-by-themselves) — same rules, same tests. Two things the
+terminal cannot offer: **`Shift+↵`** for a line break inside an item (a terminal sends the
+same byte for it as for `↵`), and **`Tab` / `Shift+Tab`** to indent and outdent (a terminal
+spends `ctrl+i` on Tab itself). `Backspace` on an empty item clears the marker.
+
+**Tick a box without opening the editor.** Checkboxes in the rendered note are live —
+click one and it saves, with the note staying as it is.
+
 **Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save, `Esc` cancel.
+`Ctrl+Shift+` and a letter reaches the rest: `X` tick, `L` bullets, `O` numbered, `T` task,
+`Q` quote, `C` code, `F` code block, `S` strikethrough, `H` heading, `R` rule.
 
 **Drag a file onto the editor** and it is attached — or paste one, so a screenshot goes
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.

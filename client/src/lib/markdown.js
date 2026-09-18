@@ -20,5 +20,13 @@ export function renderMarkdown(src) {
   // click-to-edit at all. If the two walks ever disagree, stamp nothing.
   if (targets.length !== spans.length) return clean;
   targets.forEach((el, i) => el.setAttribute('data-src', String(spans[i].start)));
+
+  // marked renders task checkboxes disabled, which swallows the click. A
+  // reader should be able to tick a box without opening the editor at all —
+  // something the terminal cannot offer.
+  for (const box of host.querySelectorAll('input[type="checkbox"]')) {
+    box.removeAttribute('disabled');
+    box.classList.add('nib-task');
+  }
   return host.innerHTML;
 }

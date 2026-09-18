@@ -4,7 +4,8 @@ import ReadView from '@/components/ReadView';
 // The two faces of one open note. Which one shows is a mode, not a different
 // note, which is what lets a click move between them.
 export default function NotePane({
-  note, mode, onOpenAt, onChange, onSave, onCancel, onDelete, saving, dirty, caretAt, status,
+  note, mode, onOpenAt, onToggleTask, onChange, onSave, onCancel, onDelete, saving,
+  dirty, caretAt, status,
 }) {
   if (mode === 'write') {
     return (
@@ -21,5 +22,12 @@ export default function NotePane({
       />
     );
   }
-  return <ReadView note={note} onDelete={onDelete} onOpenAt={onOpenAt} />;
+  return (
+    <ReadView
+      note={note}
+      onDelete={onDelete}
+      onOpenAt={onOpenAt}
+      onToggleTask={onToggleTask}
+    />
+  );
 }

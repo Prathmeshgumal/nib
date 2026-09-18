@@ -7,7 +7,7 @@ import { renderMarkdown } from '@/lib/markdown';
 import { offsetFromClick } from '@/lib/sourceMap';
 import { fullTime, relativeTime } from '@/lib/time';
 
-export default function ReadView({ note, onDelete, onOpenAt }) {
+export default function ReadView({ note, onDelete, onOpenAt, onToggleTask }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -38,6 +38,13 @@ export default function ReadView({ note, onDelete, onOpenAt }) {
         onClick={(e) => {
           // A link is a link first. Let the browser follow it.
           if (e.target.closest('a')) return;
+          // Ticking a box is the whole gesture — it must not also drop you
+          // into the editor.
+          if (e.target.matches('input[type="checkbox"]')) {
+            const at = offsetFromClick(e.target, e.currentTarget);
+            if (at !== null) onToggleTask(at);
+            return;
+          }
           onOpenAt(offsetFromClick(e.target, e.currentTarget));
         }}
         dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}

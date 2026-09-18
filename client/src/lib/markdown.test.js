@@ -29,3 +29,17 @@ it('still strips dangerous markup', () => {
 it('renders an empty note without throwing', () => {
   expect(renderMarkdown('')).toBe('');
 });
+
+it('leaves task checkboxes clickable, so a box can be ticked while reading', () => {
+  const src = '- [ ] milk\n- [x] eggs\n';
+  const host = parse(renderMarkdown(src));
+  const boxes = [...host.querySelectorAll('input[type="checkbox"]')];
+  expect(boxes).toHaveLength(2);
+  // marked renders these disabled, which would swallow the click.
+  expect(boxes.some((b) => b.hasAttribute('disabled'))).toBe(false);
+  expect(boxes[0].checked).toBe(false);
+  expect(boxes[1].checked).toBe(true);
+  // Each one sits inside a stamped item, which is how the click finds its line.
+  expect(boxes.map((b) => b.closest('[data-src]').getAttribute('data-src')))
+    .toEqual([String(src.indexOf('- [ ] milk')), String(src.indexOf('- [x] eggs'))]);
+});

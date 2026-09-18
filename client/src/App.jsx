@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { createAutosave } from '@/lib/autosave';
+import { toggleTaskAt } from '@/lib/editorActions';
 import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
@@ -147,6 +148,19 @@ export default function App() {
     await write({ quiet: true });
   };
 
+  // Ticking a box while reading is a finished act, not a draft, so it saves at
+  // once and the note stays rendered. The terminal has no equivalent.
+  const toggleTask = async (offset) => {
+    const current = noteRef.current;
+    if (!current) return;
+    const content = toggleTaskAt(current.content, offset);
+    if (content === current.content) return;
+    const next = { ...current, content };
+    setNote(next);
+    noteRef.current = next;
+    await write({ quiet: true });
+  };
+
   const saveAndRead = async () => {
     autosave.cancel();
     await save();
@@ -247,6 +261,7 @@ export default function App() {
               caretAt={caretAt}
               status={status}
               onOpenAt={openAt}
+              onToggleTask={toggleTask}
               onChange={(next) => {
                 setNote(next);
                 setDirty(true);

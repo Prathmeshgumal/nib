@@ -97,6 +97,30 @@ export const actions = {
     };
   },
 
+  // Tick or untick a task. A line that is not a task becomes one, so the same
+  // key both makes a checkbox and ticks it. Mirrors alt+x in the terminal.
+  toggleTask: (s) =>
+    eachLine(s, (line) => {
+      const box = line.match(/^(\s*[-*+]\s+)\[([ xX])\]\s(.*)$/);
+      if (box) {
+        const [, lead, state, text] = box;
+        return `${lead}[${state === ' ' ? 'x' : ' '}] ${text}`;
+      }
+      const bullet = line.match(/^(\s*)([-*+])\s+(.*)$/);
+      if (bullet) {
+        const [, indent, marker, text] = bullet;
+        return `${indent}${marker} [ ] ${text}`;
+      }
+      const indent = line.match(/^(\s*)(.*)$/);
+      return `${indent[1]}- [ ] ${indent[2]}`;
+    }),
+
+  // Tab and Shift+Tab. The terminal cannot bind these — ctrl+i *is* Tab — so
+  // this pair exists only in the browser.
+  indent: (s) => eachLine(s, (line) => `  ${line}`),
+
+  outdent: (s) => eachLine(s, (line) => line.replace(/^ {1,2}/, '')),
+
   hr: (s) => {
     const { value, start } = s;
     const prefix = start > 0 && value[start - 1] !== '\n' ? '\n' : '';
@@ -104,3 +128,20 @@ export const actions = {
     return { value: value.slice(0, start) + md + value.slice(start), start: start + md.length, end: start + md.length };
   },
 };
+
+// Tick the task on the line containing `offset`, for a click on a checkbox in
+// the rendered view — the reader never enters the editor at all. Returns the
+// document unchanged when that line is not a task.
+export function toggleTaskAt(markdown, offset) {
+  if (offset < 0 || offset > markdown.length) return markdown;
+  const start = markdown.lastIndexOf('\n', offset - 1) + 1;
+  const nl = markdown.indexOf('\n', offset);
+  const end = nl === -1 ? markdown.length : nl;
+  const line = markdown.slice(start, end);
+
+  const m = line.match(/^(\s*[-*+]\s+)\[([ xX])\]\s(.*)$/);
+  if (!m) return markdown;
+  const [, lead, state, text] = m;
+  const next = `${lead}[${state === ' ' ? 'x' : ' '}] ${text}`;
+  return markdown.slice(0, start) + next + markdown.slice(end);
+}
