@@ -37,7 +37,7 @@ preview. Both stay open at once, backed by the same file.
 - [Install](#install) · [Platforms](#platforms)
 - [Starting it](#starting-it)
 - [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [aiming](#the-arrows-and-the-wheel-follow-your-last-click) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [images and files](#images-and-files) · [deleting](#deleting-and-undoing-it) · [the browser](#the-web-ui-from-the-terminal)
-- [The web UI](#the-web-ui)
+- [The web UI](#the-web-ui) — [files in the browser](#files-in-the-browser)
 - [Writing notes](#writing-notes) — the Markdown it understands
 - [Your notes on disk](#your-notes-on-disk)
 - [The HTTP API](#the-http-api)
@@ -373,6 +373,8 @@ name and lets you open the real thing with `o`, in whatever viewer your system u
 
 In the [web UI](#the-web-ui) you can drag a file straight onto the editor, or paste one:
 a screenshot goes from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name.
+The browser also plays, shows and resizes what it can — see
+[files in the browser](#files-in-the-browser).
 
 Files are capped at **50 MB** each. Two notes using the same picture store it once —
 every file is named after a hash of its own contents, so an identical file is recognised
@@ -445,7 +447,8 @@ single click ticks one and saves, with the note staying as it is.
 
 **Drag a file onto the editor** and it is attached — or paste one, so a screenshot goes
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
-Images show in the Preview tab. See [images and files](#images-and-files).
+See [images and files](#images-and-files) for where they are kept, and
+[files in the browser](#files-in-the-browser) for what the browser does with them.
 
 **Double-click the text and you are typing.** A note opens rendered, because rendered is
 how a note is worth reading. Double-click any part of it — a paragraph, a row well down a
@@ -474,6 +477,36 @@ network can reach it.
 Everything the terminal can do, the browser can do too, and the other way around — the
 only exceptions are the ones that only make sense in one place: `$EDITOR` hand-off and
 `o` to open a link belong to the terminal, since a browser already clicks links itself.
+
+### Files in the browser
+
+A terminal can only name a file. A browser can open it, so here it does.
+
+**Video and audio play where they sit.** A clip you attached to a paragraph gets a player
+in that paragraph, with the filename underneath it — sending you to another tab to watch
+something you dropped into a sentence would be a step backwards from a plain link. The
+name under the player is also how you still get the file itself.
+
+**Documents open in a tab of their own.** A `.docx` is converted and shown as text rather
+than landing in your Downloads folder; `.csv` and `.tsv` are drawn as a table, and
+`.md`, `.txt`, `.json`, `.yaml`, source files and the like are shown as they are. A PDF
+goes to the browser's own viewer, which is better than anything worth building.
+
+Nothing is uploaded anywhere to make that happen. The conversion runs in your browser,
+reading the file from the same `127.0.0.1` the rest of the page comes from.
+
+A format with nothing to show — a `.zip`, a `.pptx`, an `.mkv` the browser has no codec
+for — still downloads on a click, as it always did.
+
+**Drag the corner to resize.** Hover a picture or a video and a small grip appears at its
+bottom-right; drag it and the media follows, down to a readable minimum and never wider
+than the column. Double-click the grip to put it back to its natural size.
+
+The width is remembered in your browser, not in the note. A screenshot you shrank stays
+shrunk next time you open that note, while the Markdown on disk stays exactly what the
+terminal wrote — so the note stays portable and the terminal preview stays clean. Because
+every attachment is named after a hash of its contents, a file you have sized once is that
+size in every note it appears in.
 
 ---
 
