@@ -1,5 +1,5 @@
 import { isViewable, kindOf, rawHref, storedName, viewerHref } from '@/lib/attachments';
-import { clampWidth, clearSize, setSize, sizeFor } from '@/lib/mediaSize';
+import { applyStoredWidth, makeGrip } from './resize';
 
 // renderAttachment builds the whole of what an attachment link becomes on the
 // page. It is a pure DOM builder, separate from the ProseMirror node view, so
@@ -39,7 +39,10 @@ export function renderAttachment({ src, text }) {
     box.append(el, caption(name, label));
     // A video has a picture worth sizing to taste. An audio player is a row of
     // controls at a fixed height, so dragging it wider would do nothing.
-    if (kind === 'video') resizable(box, el, name);
+    if (kind === 'video') {
+      applyStoredWidth(el, name);
+      box.append(makeGrip(name, (grip) => grip.parentElement?.querySelector('.nib-sizable')));
+    }
     return box;
   }
 
@@ -85,74 +88,3 @@ function caption(name, label) {
   return span;
 }
 
-// resizable gives a box a corner to drag, and applies the width the reader
-// last chose for that file.
-//
-// The width goes on the media rather than the box, which then hugs whatever
-// size the media is. Sizing the box instead would mean the picture's width
-// depends on the box and the box's width depends on the picture.
-//
-// Nothing here touches the note: the width lives in local storage, so the
-// markdown the terminal reads never learns that a video was resized.
-function resizable(box, media, name) {
-  const stored = sizeFor(name);
-  // Not clamped here: what it has to fit inside is the rendered column, which
-  // does not exist yet. The CSS caps it, and a drag clamps against the real
-  // measurement.
-  if (stored !== null) media.style.width = `${stored}px`;
-
-  const grip = document.createElement('span');
-  grip.className = 'nib-grip not-prose';
-  // A pointer gesture with no text in it: nothing to announce, nothing to put
-  // in the tab order.
-  grip.setAttribute('aria-hidden', 'true');
-  // The grip sits inside an editable document. Without this the editor treats
-  // the drag as a text selection and the caret lands in the middle of it.
-  grip.contentEditable = 'false';
-
-  grip.addEventListener('pointerdown', (e) => startResize(e, grip, media, name));
-  grip.addEventListener('dblclick', (e) => {
-    // The way out of a drag that went too far.
-    e.preventDefault();
-    e.stopPropagation();
-    media.style.removeProperty('width');
-    clearSize(name);
-  });
-
-  box.append(grip);
-}
-
-function startResize(e, grip, media, name) {
-  // A click here would otherwise open the editor, and a drag would select text
-  // across the whole note.
-  e.preventDefault();
-  e.stopPropagation();
-
-  const startX = e.clientX;
-  const startWidth = media.getBoundingClientRect().width;
-  // What the media has to fit inside, measured once: it cannot change while a
-  // pointer is down, and reading it per frame would be a layout on every move.
-  const limit = grip.closest('.ProseMirror, article, div')?.clientWidth ?? 0;
-
-  const move = (ev) => {
-    const width = clampWidth(startWidth + (ev.clientX - startX), limit);
-    if (width !== null) media.style.width = `${width}px`;
-  };
-  const end = () => {
-    grip.removeEventListener('pointermove', move);
-    grip.removeEventListener('pointerup', end);
-    grip.removeEventListener('pointercancel', end);
-    document.body.classList.remove('nib-resizing');
-    setSize(name, media.getBoundingClientRect().width);
-  };
-
-  // jsdom has no pointer capture; the listeners below work without it.
-  grip.setPointerCapture?.(e.pointerId);
-  // While dragging, the whole page shows the resize cursor: the pointer is
-  // long gone from the grip, and a cursor flickering over whatever is
-  // underneath makes the drag feel broken.
-  document.body.classList.add('nib-resizing');
-  grip.addEventListener('pointermove', move);
-  grip.addEventListener('pointerup', end);
-  grip.addEventListener('pointercancel', end);
-}
