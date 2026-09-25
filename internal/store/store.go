@@ -152,9 +152,11 @@ func scan(rows *sql.Rows) ([]Note, error) {
 func (s *Store) List(query string) ([]Note, error) {
 	const cols = `SELECT id, title, content, created_at, updated_at FROM notes`
 	if q := strings.TrimSpace(query); q != "" {
-		like := "%" + q + "%"
+		like := likePattern(q)
+		// search_text, not content: it is the same words with a serializer's
+		// backslashes taken out, so what the typist wrote is what matches.
 		rows, err := s.db.Query(cols+` WHERE deleted_at IS NULL
-			AND (title LIKE ? OR content LIKE ?)
+			AND (title LIKE ? ESCAPE '\' OR search_text LIKE ? ESCAPE '\')
 			ORDER BY updated_at DESC`, like, like)
 		if err != nil {
 			return nil, err

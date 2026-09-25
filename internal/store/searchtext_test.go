@@ -112,3 +112,43 @@ func TestOpeningAnOlderDatabaseBackfillsSearchText(t *testing.T) {
 		t.Errorf("after reopening, search_text = %q, want %q", got, want)
 	}
 }
+
+func TestSearchFindsTextThatWasEscaped(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.Create("", `Call store\_Open before autosave\_delay fires.`); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"store_Open", "autosave_delay"} {
+		got, err := s.List(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 1 {
+			t.Errorf("List(%q) returned %d notes, want 1", q, len(got))
+		}
+	}
+}
+
+// SQLite's LIKE reads _ as "any one character" and % as "anything at all". An
+// unescaped query handed both straight to the pattern, so searching for a name
+// with an underscore in it quietly matched a good deal more than it said.
+func TestSearchTreatsWildcardsAsLiteralText(t *testing.T) {
+	s := newTestStore(t)
+	for _, c := range []string{
+		"store_Open is the one we want",
+		"storeXOpen is not",
+		"100% done",
+		"100 percent done",
+	} {
+		if _, err := s.Create("", c); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if got, _ := s.List("store_Open"); len(got) != 1 {
+		t.Errorf(`List("store_Open") returned %d notes, want 1`, len(got))
+	}
+	if got, _ := s.List("100%"); len(got) != 1 {
+		t.Errorf(`List("100%%") returned %d notes, want 1`, len(got))
+	}
+}

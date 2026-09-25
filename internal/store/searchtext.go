@@ -80,3 +80,13 @@ func backfillSearchText(db *sql.DB) error {
 	}
 	return tx.Commit()
 }
+
+// likePattern turns a typed query into a LIKE pattern that matches it
+// literally. SQLite reads _ as "any one character" and % as "anything at all",
+// so a query containing either used to match a good deal more than it said.
+// The backslash is the ESCAPE character the query names, which makes it the
+// third thing to protect.
+func likePattern(query string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + r.Replace(query) + "%"
+}
