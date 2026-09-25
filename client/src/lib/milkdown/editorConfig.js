@@ -2,6 +2,7 @@ import { Crepe } from '@milkdown/crepe';
 import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
+import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -98,7 +99,15 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     featureConfigs: onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {},
   });
   crepe.editor
-    .config((ctx) => ctx.set(remarkStringifyOptionsCtx, stringifyOptions))
+    .config((ctx) => {
+      ctx.set(remarkStringifyOptionsCtx, stringifyOptions);
+      // Tables get normalised whichever way this goes: left alone, remark
+      // pads every cell to its column; turned off, the delimiter row collapses
+      // to `| - |`. Padding wins because the terminal shows raw markdown while
+      // editing, and an aligned table is easier to read there. It happens once
+      // and then holds - see the idempotency test.
+      ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
+    })
     .use(imageFixes);
   return crepe;
 }

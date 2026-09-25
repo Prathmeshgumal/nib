@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { roundTrip } from './editorConfig';
+import { welcome } from './welcome.fixture';
 
 // attach.Refs, transcribed from internal/attach/ref.go:126. If that regex
 // changes, this one has to change with it: it is the whole reason this file
@@ -51,5 +52,23 @@ describe('escaping is idempotent', () => {
     // It must never escape twice, or the note grows a backslash per save.
     const first = await roundTrip('Call store_Open now.\n');
     expect(await roundTrip(first)).toBe(first);
+  });
+});
+
+describe('the welcome note', () => {
+  it('comes back unchanged', async () => {
+    expect(await roundTrip(welcome)).toBe(welcome);
+  });
+});
+
+describe('tables', () => {
+  // The editor aligns a table's cells the first time it writes one back. That
+  // is a real change to a file the terminal owns, so it is pinned here rather
+  // than left to be discovered: it must happen once and then hold.
+  it('aligns cells once and then leaves them alone', async () => {
+    const ragged = '| Key | Does |\n| --- | --- |\n| j k | move |\n| q | quit |\n';
+    const aligned = await roundTrip(ragged);
+    expect(aligned).toBe('| Key | Does |\n| --- | ---- |\n| j k | move |\n| q   | quit |\n');
+    expect(await roundTrip(aligned)).toBe(aligned);
   });
 });
