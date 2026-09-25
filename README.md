@@ -242,16 +242,16 @@ into an editor that would rather have it as one line.
 terminal on a half-written note does not cost you it. The bottom bar says `saved` or
 `unsaved` so you always know which.
 
-Because the note is being written as you type, `esc` no longer just walks away — it puts
-the note back to how it was when you opened the editor. A note that only existed because
-autosave created it goes to the trash instead, where it keeps the usual thirty days.
+Both ways out of the editor keep what you wrote, so neither can cost you anything: `esc`
+and `ctrl+s` now do the same thing, and `esc` is no longer a way to throw work away by
+reflex. To take an edit back, leave the editor and press `u`, or use the trash.
 
 While editing:
 
 | Key | Does |
 | --- | --- |
-| `ctrl+s` | Save and go back to the list |
-| `esc` | Put the note back to how it was, and go back to the list |
+| `ctrl+s` | Go back to the list |
+| `esc` | Go back to the list |
 | `tab` | Switch between the title field and the body |
 | `ctrl+p` | Preview what you are writing; press again to go back |
 | `ctrl+b` | Bold |

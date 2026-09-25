@@ -54,7 +54,7 @@ func (m *model) autosave() tea.Cmd {
 		}
 		// Remember what was created, or the next autosave makes a second copy.
 		m.editing = &saved
-		m.autosaved, m.created = true, true
+		m.autosaved = true
 		m.savedGen = m.gen
 		return nil
 	}
@@ -68,36 +68,24 @@ func (m *model) autosave() tea.Cmd {
 	return nil
 }
 
-// discardEdit is what escape does now that the note has been saving itself all
-// along: put it back to how it was when the editor opened.
+// leaveEdit is escape: close the editor, keeping what was written.
 //
-// It reloads afterwards because the title in the list, and the order the list
-// is in, both follow what was just written back.
-func (m *model) discardEdit() tea.Cmd {
+// Autosave has been writing all along, but the last second of typing may not
+// have reached the note yet, so the draft goes in before the editor closes.
+//
+// Escape used to throw the session away, and briefly - once the note was
+// saving itself - it put the note back to how it had been. Both of those make
+// the one key a hand reaches for to mean "I am done here" into a key that can
+// cost you an afternoon. It keeps the writing instead. Taking back an edit is
+// what undo and the thirty-day trash are for.
+func (m *model) leaveEdit() tea.Cmd {
+	m.autosave()
 	if !m.autosaved {
-		// Nothing reached the note, so there is nothing to take back and the
-		// draft dies with the editor, exactly as it always did.
-		return flash("Discarded")
-	}
-
-	if m.created {
-		// The note is only here because an autosave made it. Deleting is the
-		// thirty-day trash rather than the end of it, so an escape pressed by
-		// mistake after half an hour of writing is still recoverable.
-		if err := m.st.Delete(m.editing.ID); err != nil {
-			m.err = err
-			return nil
-		}
-		return tea.Batch(m.reload(), flash("Discarded"))
-	}
-
-	if _, err := m.st.Update(m.editing.ID, m.origTitle, m.origContent); err != nil {
-		m.err = err
+		// An empty new note: nothing was ever written, so there is nothing to
+		// show in the list and nothing to say about it.
 		return nil
 	}
-	// Not "Discarded": something was written and then unwritten, and the word
-	// should say which of the two just happened.
-	return tea.Batch(m.reload(), flash("Reverted"))
+	return tea.Batch(m.reload(), flash("Saved"))
 }
 
 // draftText is everything the editor is holding, as one string to compare

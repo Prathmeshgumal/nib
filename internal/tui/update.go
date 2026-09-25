@@ -424,9 +424,9 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlS:
 			return m, m.save()
 		case tea.KeyEsc:
-			// Read the snapshot before the editor is torn down: discardEdit
-			// needs to know which note it is putting back.
-			cmd := m.discardEdit()
+			// Flush before the editor is torn down, while the draft is still
+			// there to be read.
+			cmd := m.leaveEdit()
 			m.mode = modeList
 			m.editing = nil
 			m.body.Blur()
