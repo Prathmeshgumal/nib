@@ -36,9 +36,10 @@ CREATE TABLE IF NOT EXISTS notes (
   id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL DEFAULT 'Untitled',
   content    TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  deleted_at TEXT
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  deleted_at  TEXT,
+  search_text TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (updated_at DESC);`
 
@@ -64,6 +65,16 @@ func Open(path string) (*Store, error) {
 	// Databases created before the trash existed need the extra column.
 	if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN deleted_at TEXT`); err != nil &&
 		!strings.Contains(err.Error(), "duplicate column") {
+		return nil, fmt.Errorf("migrating schema: %w", err)
+	}
+	// Databases created before search kept a plain copy need one too. A nil
+	// error means the column was added just now, so every row in it is empty
+	// and has to be filled before the first search reads it.
+	if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN search_text TEXT NOT NULL DEFAULT ''`); err == nil {
+		if err := backfillSearchText(db); err != nil {
+			return nil, fmt.Errorf("migrating schema: %w", err)
+		}
+	} else if !strings.Contains(err.Error(), "duplicate column") {
 		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
 	// Attachments live beside the database rather than in a fixed place, so
@@ -178,15 +189,16 @@ func (s *Store) Create(title, content string) (Note, error) {
 		UpdatedAt: now(),
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO notes (id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt)
+		`INSERT INTO notes (id, title, content, created_at, updated_at, search_text)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content))
 	return n, err
 }
 
 func (s *Store) Update(id, title, content string) (Note, error) {
-	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?
+	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, content), content, now(), id)
+		DeriveTitle(title, content), content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
 	}
