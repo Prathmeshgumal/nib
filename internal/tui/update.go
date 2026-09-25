@@ -22,8 +22,24 @@ func mouseWanted(m mode) bool {
 // means a new mode cannot forget to.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before := m.mode
+	// Only worth reading while the editor is open: outside it there is no
+	// draft to change, and joining the note's lines on every mouse move would
+	// be a copy of the whole note for nothing.
+	var draft string
+	if before == modeEdit {
+		draft = m.draftText()
+	}
 	updated, cmd := m.update(msg)
 	next := updated.(model)
+
+	// Anything that changed the draft schedules a write, whoever changed it:
+	// a keystroke, a formatting key, a list carrying itself on. Asking here,
+	// once, is what stops a new way of editing text quietly arriving without
+	// one. Opening the editor fills the draft too, so both sides have to
+	// already be in it for that to count as an edit.
+	if before == modeEdit && next.mode == modeEdit && next.draftText() != draft {
+		cmd = tea.Batch(cmd, (&next).scheduleAutosave())
+	}
 
 	if was, now := mouseWanted(before), mouseWanted(next.mode); was != now {
 		if now {
@@ -42,6 +58,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layout()
 		m.renderPreview()
 		return m, nil
+
+	case autosaveMsg:
+		// Anything typed since this was scheduled has scheduled its own write,
+		// so this one is stale and would only repeat work.
+		if m.mode != modeEdit || msg.gen != m.gen {
+			return m, nil
+		}
+		return m, m.autosave()
 
 	case reloadedMsg:
 		m.err = msg.err
@@ -153,8 +177,13 @@ func (m *model) scrollBy(delta int) {
 }
 
 func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Quitting always works, whatever the mode.
+	// Quitting always works, whatever the mode. Writing in the editor that the
+	// timer has not reached yet goes in first: the whole point of saving by
+	// itself is that closing the terminal is not a way to lose an afternoon.
 	if msg.Type == tea.KeyCtrlC {
+		if m.mode == modeEdit {
+			m.autosave()
+		}
 		return m, tea.Quit
 	}
 	m.err = nil
@@ -395,11 +424,14 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlS:
 			return m, m.save()
 		case tea.KeyEsc:
+			// Read the snapshot before the editor is torn down: discardEdit
+			// needs to know which note it is putting back.
+			cmd := m.discardEdit()
 			m.mode = modeList
 			m.editing = nil
 			m.body.Blur()
 			m.title.Blur()
-			return m, flash("Discarded")
+			return m, cmd
 		case tea.KeyCtrlE:
 			return m, m.externalEdit()
 		case tea.KeyCtrlP:

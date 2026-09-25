@@ -60,8 +60,18 @@ type model struct {
 	body    textarea.Model
 	preview viewport.Model
 
-	editing      *store.Note // nil while composing a brand-new note
-	focusTitle   bool
+	editing    *store.Note // nil while composing a brand-new note
+	gen        int         // counts edits, so a stale autosave can tell
+	focusTitle bool
+
+	// What the note said when the editor opened, and what has happened to it
+	// since. Autosave overwrites the note as you type, so escape can only mean
+	// "put it back" if the editor remembers what back was.
+	origTitle    string
+	origContent  string
+	autosaved    bool // an autosave has written at least once
+	created      bool // the note exists only because an autosave made it
+	savedGen     int  // the edit the note on disk is up to date with
 	previewDraft bool // showing the draft rendered, rather than its source
 	draft        viewport.Model
 	rawView      viewport.Model // full-screen Markdown source, for selecting
@@ -333,15 +343,22 @@ func (m *model) startEdit(n *store.Note) {
 	m.mode = modeEdit
 	m.focusTitle = false
 	m.previewDraft = false
+	// A fresh session of writing: nothing has been saved by itself yet, and
+	// this is what escape will put back.
+	m.autosaved = false
+	m.created = false
+	m.savedGen = m.gen // nothing typed yet, so the note is up to date
 	if n == nil {
 		m.editing = nil
 		m.title.SetValue("")
 		m.body.SetValue("")
+		m.origTitle, m.origContent = "", ""
 	} else {
 		cp := *n
 		m.editing = &cp
 		m.title.SetValue(n.Title)
 		m.body.SetValue(n.Content)
+		m.origTitle, m.origContent = n.Title, n.Content
 	}
 	m.title.Blur()
 	m.body.Focus()
