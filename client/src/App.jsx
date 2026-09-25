@@ -104,16 +104,12 @@ export default function App() {
   const editor = useRef(null);
 
   const syncFromEditor = () => {
-    const crepe = editor.current;
     const current = noteRef.current;
-    if (!crepe || !current) return false;
-    let markdown;
-    try {
-      markdown = crepe.getMarkdown();
-    } catch {
-      return false; // an editor that never finished starting has nothing to give
-    }
-    if (markdown === undefined || markdown === current.content) return false;
+    // Null means the editor has nothing the app has not already been told.
+    // It answers that itself, because parsing tidies markdown and only the
+    // editor knows what the note looked like once it had.
+    const markdown = editor.current?.pendingMarkdown?.() ?? null;
+    if (!current || markdown === null) return false;
     const next = { ...current, content: markdown };
     noteRef.current = next;
     setNote(next);
@@ -279,8 +275,8 @@ export default function App() {
                 autosave.schedule(next);
               }}
               onDelete={remove}
-              onReady={(crepe) => {
-                editor.current = crepe;
+              onReady={(api) => {
+                editor.current = api;
               }}
             />
           ) : (

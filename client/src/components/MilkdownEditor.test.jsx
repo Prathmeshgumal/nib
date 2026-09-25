@@ -165,3 +165,35 @@ describe('the editor is not rebuilt while you type', () => {
     await act(async () => root.unmount());
   });
 });
+
+describe('opening a note and leaving it', () => {
+  it('changes nothing, even though the editor tidies whitespace', async () => {
+    // The editor normalises as it parses: trailing spaces go, blank lines
+    // settle around blocks. That is fine when someone has edited the note -
+    // but merely looking at one must not rewrite it, or every note in the
+    // database is touched the first time it is opened.
+    const onChange = vi.fn();
+    const messy = '# Heading\n- a list item   \n\n\n\nsome text \n';
+    const m = await mount({ note: note('a', messy), onChange });
+    await m.unmount();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('what the app can ask the editor', () => {
+  it('says nothing is pending until something is typed', async () => {
+    const m = await mount({ note: note('a', '# Heading\n\nsome text   \n') });
+    // Opening tidied that trailing whitespace away, but nobody typed, so
+    // there is nothing to save. This is what stops Escape or ctrl+S on a
+    // note you only looked at from rewriting it.
+    expect(m.crepe.pendingMarkdown()).toBeNull();
+
+    await act(async () => {
+      m.crepe.editor.action(replaceAll('# Heading\n\nsomething typed\n'));
+    });
+    expect(m.crepe.pendingMarkdown()).toContain('something typed');
+    // And asking twice does not report the same edit twice.
+    expect(m.crepe.pendingMarkdown()).toBeNull();
+    await m.unmount();
+  });
+});

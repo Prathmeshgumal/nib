@@ -377,9 +377,6 @@
   .bitem.on { background: #fff; border-left: 3px solid var(--yellow); font-weight: 600; }
   .bmain { padding: 14px 16px 20px; }
   .btitle { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
-  .btabs { display: flex; gap: 4px; margin-bottom: 10px; }
-  .btab { font-family: var(--mono); font-size: 10.5px; padding: 4px 11px; border: 1px solid var(--rule); color: var(--ink2); }
-  .btab.on { background: var(--ink); color: var(--paper2); border-color: var(--ink); }
   .btools { display: flex; flex-wrap: wrap; gap: 3px; padding-bottom: 11px; border-bottom: 1px solid var(--rule); margin-bottom: 13px; }
   .btool {
     width: 25px; height: 25px; display: grid; place-items: center;
@@ -837,17 +834,17 @@
         <div>
           <p class="body">
             Press <code class="i">W</code> in the terminal and the same notes
-            open in a browser — a formatting toolbar, live preview and a
-            light or dark theme, for the times you would rather point at
-            something than remember a key.
+            open in a browser — a note you write straight into, a slash menu
+            for anything you want to insert, and a light or dark theme, for
+            the times you would rather point at something than remember a key.
           </p>
           <p class="body">
-            <strong>Double-click the text and you are typing.</strong> A note
-            opens rendered, because rendered is how a note is worth reading —
-            double-click any part of it and the pane becomes its Markdown,
-            cursor already on the line you pointed at. It saves as you go, and
-            <code class="i">ctrl+s</code> and <code class="i">esc</code> still
-            mean what they mean in the terminal.
+            <strong>There is no edit mode.</strong> A note is one surface and
+            typing into it is how it changes — a heading looks like a heading
+            while you write it, a table is a table you can put the cursor in.
+            Type <code class="i">/</code> to insert anything; select text and a
+            toolbar appears over it. It saves as you go, and what lands on disk
+            is still the Markdown the terminal reads.
           </p>
           <p class="body">
             <strong>It is the same file, open twice.</strong> Write in one, press
@@ -870,7 +867,7 @@
           </p>
           <div class="tags" style="margin-top:22px;margin-bottom:0">
             <span class="tag b">[ LOCALHOST ONLY ]</span>
-            <span class="tag">[ DOUBLE-CLICK TO EDIT ]</span>
+            <span class="tag">[ NO EDIT MODE ]</span>
             <span class="tag">[ MEDIA PLAYS IN THE NOTE ]</span>
             <span class="tag">[ REACT + TAILWIND ]</span>
             <span class="tag">[ EMBEDDED IN THE BINARY ]</span>
@@ -894,7 +891,6 @@
             </div>
             <div class="bmain">
               <div class="btitle">Meeting notes</div>
-              <div class="btabs"><span class="btab on">Write</span><span class="btab">Preview</span></div>
               <div class="btools">
                 <span class="btool">H</span><span class="btool"><b>B</b></span>
                 <span class="btool"><i>I</i></span><span class="btool">S</span>

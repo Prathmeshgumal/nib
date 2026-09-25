@@ -21,9 +21,12 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
 
     let crepe = null;
     let thrownAway = false;
-    // What the app has been told. The editor reports changes on a 200ms
-    // debounce, so this is how the close below knows whether the last thing
-    // typed ever got out.
+    // What the app has been told, and the yardstick the close below measures
+    // against. It is set from the editor once it has started rather than from
+    // the note, because parsing tidies markdown as it goes - trailing spaces
+    // dropped, blank lines settled around blocks. Measuring against the note
+    // would make every one of those look like an edit, and simply opening a
+    // note would rewrite it.
     let reported = note.content ?? '';
 
     // A dropped or pasted file goes to nib's own attachment store and comes
@@ -59,7 +62,32 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
           crepe.destroy();
           return;
         }
-        onReady?.(crepe);
+        // The note as the editor holds it: anything different from here on is
+        // something the typist did.
+        try {
+          reported = crepe.getMarkdown();
+        } catch {
+          // Leave the note's own text as the yardstick.
+        }
+        // What the app gets is not the editor but one question it can ask:
+        // "is there anything you have not told me yet?" Keeping the yardstick
+        // in here is what stops every caller having to know that parsing
+        // tidies markdown.
+        onReady?.({
+          // The editor itself, for anything that needs to reach ProseMirror.
+          editor: crepe.editor,
+          pendingMarkdown() {
+            let markdown;
+            try {
+              markdown = crepe.getMarkdown();
+            } catch {
+              return null;
+            }
+            if (markdown === reported) return null;
+            reported = markdown;
+            return markdown;
+          },
+        });
       })
       .catch(() => {
         // A note that will not open is worth saying so about, but it must not

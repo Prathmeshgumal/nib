@@ -24,3 +24,12 @@ if (typeof globalThis.PointerEvent === 'undefined') {
     }
   };
 }
+
+// jsdom has no layout, so it has no elementFromPoint. Milkdown's drag handle
+// calls it on every pointer move to find the block under the cursor; without
+// this the resize tests throw from inside a debounce, where nothing can catch
+// it. Nothing is under the pointer in a document with no boxes, so null is the
+// honest answer.
+if (!document.elementFromPoint) {
+  document.elementFromPoint = () => null;
+}
