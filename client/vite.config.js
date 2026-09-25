@@ -6,7 +6,16 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, './src') },
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+      // Crepe drags in every CodeMirror grammar and all of KaTeX whether the
+      // features are on or not; see the stubs for why.
+      '@codemirror/language-data': path.resolve(
+        import.meta.dirname,
+        './src/lib/milkdown/stubs/languageData.js',
+      ),
+      katex: path.resolve(import.meta.dirname, './src/lib/milkdown/stubs/katex.js'),
+    },
   },
   server: {
     host: '0.0.0.0',
