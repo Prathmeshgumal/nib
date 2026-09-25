@@ -1,0 +1,91 @@
+import { useEffect, useRef } from 'react';
+import { createEditor } from '@/lib/milkdown/editorConfig';
+import { uploadAttachment } from '@/lib/api';
+
+// The note, as one surface. There is no read mode and no write mode any more:
+// what is on screen is the note, and typing into it is how it changes.
+//
+// The editor instance is built once per note and torn down with it. It is
+// keyed on the note's id rather than its text, because rebuilding on every
+// keystroke would throw the cursor away - and stop whatever video was playing.
+export default function MilkdownEditor({ note, onChange, onReady }) {
+  const host = useRef(null);
+  // Read from inside the editor's own callbacks, which outlive the render that
+  // registered them.
+  const latest = useRef({ note, onChange });
+  latest.current = { note, onChange };
+
+  useEffect(() => {
+    const root = host.current;
+    if (!root) return undefined;
+
+    let crepe = null;
+    let thrownAway = false;
+    // What the app has been told. The editor reports changes on a 200ms
+    // debounce, so this is how the close below knows whether the last thing
+    // typed ever got out.
+    let reported = note.content ?? '';
+
+    // A dropped or pasted file goes to nib's own attachment store and comes
+    // back as the relative link the terminal already understands.
+    const onUpload = async (file) => {
+      const { name } = await uploadAttachment(file);
+      return `attachments/${name}`;
+    };
+
+    crepe = createEditor(root, { markdown: note.content ?? '', onUpload });
+    crepe.on((listener) => {
+      listener.markdownUpdated((_ctx, markdown, previous) => {
+        // Two different documents can serialize to the same markdown - a
+        // selection tidied up, a node split and rejoined - and reporting one
+        // of those would mark a note dirty for having been looked at.
+        //
+        // Loading is already safe without a guard here: the listener only
+        // fires once it has a previous document to compare against, so
+        // opening a note is silent.
+        if (markdown === previous) return;
+        reported = markdown;
+        const current = latest.current;
+        current.onChange?.({ ...current.note, content: markdown });
+      });
+    });
+
+    crepe
+      .create()
+      .then(() => {
+        // Unmounted while it was still starting: throw it away rather than
+        // leave an editor attached to a node React has already dropped.
+        if (thrownAway) {
+          crepe.destroy();
+          return;
+        }
+        onReady?.(crepe);
+      })
+      .catch(() => {
+        // A note that will not open is worth saying so about, but it must not
+        // take the app down with it.
+      });
+
+    return () => {
+      thrownAway = true;
+      // Anything typed inside the debounce window has not been reported yet.
+      // Reading the editor directly on the way out is what stops the last
+      // sentence of a note being lost to a closed tab or a switched note -
+      // the failure autosave exists to prevent in the first place.
+      try {
+        const last = crepe?.getMarkdown();
+        if (last !== undefined && last !== reported) {
+          const current = latest.current;
+          current.onChange?.({ ...current.note, content: last });
+        }
+      } catch {
+        // An editor that never finished starting has nothing to hand back.
+      }
+      crepe?.destroy();
+    };
+    // Deliberately not note.content: see the note above about the cursor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id]);
+
+  return <div ref={host} className="nib-editor min-h-0 flex-1 overflow-y-auto" />;
+}
