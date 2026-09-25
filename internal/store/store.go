@@ -36,9 +36,10 @@ CREATE TABLE IF NOT EXISTS notes (
   id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL DEFAULT 'Untitled',
   content    TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  deleted_at TEXT
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  deleted_at  TEXT,
+  search_text TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (updated_at DESC);`
 
@@ -64,6 +65,16 @@ func Open(path string) (*Store, error) {
 	// Databases created before the trash existed need the extra column.
 	if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN deleted_at TEXT`); err != nil &&
 		!strings.Contains(err.Error(), "duplicate column") {
+		return nil, fmt.Errorf("migrating schema: %w", err)
+	}
+	// Databases created before search kept a plain copy need one too. A nil
+	// error means the column was added just now, so every row in it is empty
+	// and has to be filled before the first search reads it.
+	if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN search_text TEXT NOT NULL DEFAULT ''`); err == nil {
+		if err := backfillSearchText(db); err != nil {
+			return nil, fmt.Errorf("migrating schema: %w", err)
+		}
+	} else if !strings.Contains(err.Error(), "duplicate column") {
 		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
 	// Attachments live beside the database rather than in a fixed place, so
@@ -141,9 +152,11 @@ func scan(rows *sql.Rows) ([]Note, error) {
 func (s *Store) List(query string) ([]Note, error) {
 	const cols = `SELECT id, title, content, created_at, updated_at FROM notes`
 	if q := strings.TrimSpace(query); q != "" {
-		like := "%" + q + "%"
+		like := likePattern(q)
+		// search_text, not content: it is the same words with a serializer's
+		// backslashes taken out, so what the typist wrote is what matches.
 		rows, err := s.db.Query(cols+` WHERE deleted_at IS NULL
-			AND (title LIKE ? OR content LIKE ?)
+			AND (title LIKE ? ESCAPE '\' OR search_text LIKE ? ESCAPE '\')
 			ORDER BY updated_at DESC`, like, like)
 		if err != nil {
 			return nil, err
@@ -169,24 +182,28 @@ func (s *Store) Get(id string) (Note, error) {
 	return n, err
 }
 
+// Create writes a new note. The title falls back to the first line of the
+// body, read without a serializer's backslashes: they are invisible in the
+// editor that wrote them and have no business in a list on screen.
 func (s *Store) Create(title, content string) (Note, error) {
 	n := Note{
 		ID:        newID(),
-		Title:     DeriveTitle(title, content),
+		Title:     DeriveTitle(title, Unescape(content)),
 		Content:   content,
 		CreatedAt: now(),
 		UpdatedAt: now(),
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO notes (id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt)
+		`INSERT INTO notes (id, title, content, created_at, updated_at, search_text)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content))
 	return n, err
 }
 
 func (s *Store) Update(id, title, content string) (Note, error) {
-	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?
+	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, content), content, now(), id)
+		DeriveTitle(title, Unescape(content)), content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
 	}
