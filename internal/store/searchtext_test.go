@@ -152,3 +152,14 @@ func TestSearchTreatsWildcardsAsLiteralText(t *testing.T) {
 		t.Errorf(`List("100%%") returned %d notes, want 1`, len(got))
 	}
 }
+
+func TestTitleDropsSerializerEscapes(t *testing.T) {
+	s := newTestStore(t)
+	n, err := s.Create("", `# Call store\_Open first`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Call store_Open first"; n.Title != want {
+		t.Errorf("Title = %q, want %q", n.Title, want)
+	}
+}

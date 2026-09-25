@@ -182,10 +182,13 @@ func (s *Store) Get(id string) (Note, error) {
 	return n, err
 }
 
+// Create writes a new note. The title falls back to the first line of the
+// body, read without a serializer's backslashes: they are invisible in the
+// editor that wrote them and have no business in a list on screen.
 func (s *Store) Create(title, content string) (Note, error) {
 	n := Note{
 		ID:        newID(),
-		Title:     DeriveTitle(title, content),
+		Title:     DeriveTitle(title, Unescape(content)),
 		Content:   content,
 		CreatedAt: now(),
 		UpdatedAt: now(),
@@ -200,7 +203,7 @@ func (s *Store) Create(title, content string) (Note, error) {
 func (s *Store) Update(id, title, content string) (Note, error) {
 	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, content), content, now(), Unescape(content), id)
+		DeriveTitle(title, Unescape(content)), content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
 	}
