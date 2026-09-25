@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@milkdown/crepe": "^7.22.2",
+    "@milkdown/kit": "^7.22.2",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",

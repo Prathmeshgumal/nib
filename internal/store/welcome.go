@@ -27,10 +27,10 @@ Your writing saves itself as you go. ` + "`esc`" + ` and
 ` + "`ctrl+p`" + ` previews what you are writing.
 
 | Key | Does |
-| --- | --- |
+| --- | ---- |
 | j k | move |
-| ↵ | edit |
-| q | quit |
+| ↵   | edit |
+| q   | quit |
 
 Delete this note whenever you like — nothing depends on it.
 `
