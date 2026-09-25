@@ -19,10 +19,13 @@ func (m model) helpLine() string {
 	case modeSearch:
 		return "type to filter   ↵ accept   esc clear"
 	case modeEdit:
+		// The state word comes first: it is the answer to the question the
+		// bar exists for while you are writing, which is whether it is safe
+		// to walk away.
 		if m.previewDraft {
-			return "ctrl+p back to writing   ctrl+s save   esc cancel"
+			return m.draftState() + "   ctrl+p back to writing   ctrl+s save and close   esc revert"
 		}
-		return "ctrl+s save  ctrl+p preview  ctrl+b bold  alt+i italic  ctrl+k link  ? in help: all keys  esc cancel"
+		return m.draftState() + "  ctrl+s save and close  ctrl+p preview  ctrl+b bold  alt+i italic  ctrl+k link  ? in help: all keys  esc revert"
 	case modeConfirm:
 		return "y confirm   n / esc cancel"
 	case modeRaw:
@@ -80,9 +83,12 @@ const helpText = `
     e            edit it straight in $EDITOR
 
   While editing
-    ctrl+s       save                  tab      switch title / body
+    Your writing saves itself about a second after you stop typing, so
+    neither of the two ways out of the editor can lose it.
+
+    ctrl+s       save and close        tab      switch title / body
     ctrl+p       preview the draft     ctrl+e   hand it to $EDITOR
-    esc          discard
+    esc          put the note back to how it was, and close
 
   Lists carry on by themselves
     ↵            at the end of a list item, starts the next one:

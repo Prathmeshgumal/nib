@@ -237,12 +237,21 @@ into an editor that would rather have it as one line.
 | `↵` | Edit the selected note |
 | `e` | Edit the selected note straight in `$EDITOR` |
 
+**It saves as you go,** about a second after you stop typing, the same as
+[the browser does](#the-web-ui). You never have to remember `ctrl+s`, and closing the
+terminal on a half-written note does not cost you it. The bottom bar says `saved` or
+`unsaved` so you always know which.
+
+Because the note is being written as you type, `esc` no longer just walks away — it puts
+the note back to how it was when you opened the editor. A note that only existed because
+autosave created it goes to the trash instead, where it keeps the usual thirty days.
+
 While editing:
 
 | Key | Does |
 | --- | --- |
 | `ctrl+s` | Save and go back to the list |
-| `esc` | Discard changes |
+| `esc` | Put the note back to how it was, and go back to the list |
 | `tab` | Switch between the title field and the body |
 | `ctrl+p` | Preview what you are writing; press again to go back |
 | `ctrl+b` | Bold |

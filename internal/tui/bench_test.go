@@ -2,6 +2,7 @@ package tui
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,3 +52,39 @@ func BenchmarkRenderPreview(b *testing.B) {
 		m.renderPreview()
 	}
 }
+
+// benchTyping measures one keystroke in the editor.
+//
+// Autosave compares the draft against itself on every event to decide whether
+// a write is due, which is a pass over the whole note. This is here to keep
+// that honest: a note is allowed to be as long as someone wants, and typing
+// into a long one must not start to drag.
+func benchTyping(b *testing.B, paragraphs int) {
+	b.Helper()
+	st, err := store.Open(filepath.Join(b.TempDir(), "typing.db"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() { st.Close() })
+	long := strings.Repeat("Some ordinary prose in a note that has grown long.\n\n", paragraphs)
+	if _, err := st.Create("Long", long); err != nil {
+		b.Fatal(err)
+	}
+
+	m := New(st)
+	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	notes, err := st.List("")
+	if err != nil {
+		b.Fatal(err)
+	}
+	m = press(m, reloadedMsg{notes: notes})
+	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = press(m, key('x'))
+	}
+}
+
+func BenchmarkTypingShortNote(b *testing.B) { benchTyping(b, 5) }
+func BenchmarkTypingLongNote(b *testing.B)  { benchTyping(b, 500) }
