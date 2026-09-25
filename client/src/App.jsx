@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { createAutosave } from '@/lib/autosave';
-import { toggleTaskAt } from '@/lib/editorActions';
 import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
@@ -23,12 +22,9 @@ const blankNote = () => ({ id: null, title: '', content: '', updated_at: null })
 export default function App() {
   const [notes, setNotes] = useState([]);
   const [note, setNote] = useState(null);       // the open note
-  const [mode, setMode] = useState('read');     // 'read' | 'write'
-  const [baseline, setBaseline] = useState(''); // content when write mode began
-  const [caretAt, setCaretAt] = useState(null); // {offset} for one click
   const [query, setQuery] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // The one thing that says whether what is on screen has reached the note.
+  // There is no separate 'dirty' any more: this is it.
   const [status, setStatus] = useState('saved'); // 'saved' | 'editing' | 'saving'
   const [trash, setTrash] = useState([]);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -51,14 +47,14 @@ export default function App() {
     }
   }, []);
 
-  // The list sorts by most-recently-edited, so an autosave would lift the open
-  // note to the top mid-sentence and move the row being looked at. Hold the
-  // refresh until writing is done; leaving write mode runs this again.
+  // The list sorts by most-recently-edited, so refreshing it on every autosave
+  // would lift the open note to the top mid-sentence and slide the row being
+  // looked at out from under the pointer. It refreshes when the search changes
+  // and when the open note changes, and not while a note is being written.
   useEffect(() => {
-    if (mode === 'write') return;
     const t = setTimeout(() => refresh(query), 200);
     return () => clearTimeout(t);
-  }, [query, refresh, mode]);
+  }, [query, refresh]);
 
   useEffect(() => {
     refreshTrash();
@@ -66,10 +62,7 @@ export default function App() {
 
   const startNew = () => {
     setNote(blankNote());
-    setBaseline('');
-    setMode('write');
-    setCaretAt({ offset: 0 });
-    setDirty(false);
+    setStatus('saved');
   };
 
   // The latest note, readable from a timer that fired before the last render.
@@ -80,13 +73,11 @@ export default function App() {
     const current = noteRef.current;
     if (!current) return;
     setStatus('saving');
-    setSaving(true);
     try {
       const payload = { title: current.title, content: current.content };
       const saved = current.id
         ? await updateNote(current.id, payload)
         : await createNote(payload);
-      setDirty(false);
       setStatus('saved');
       // Keep the id a create just handed back, but not a stale body: the
       // note may have been typed into while the request was in flight.
@@ -96,8 +87,6 @@ export default function App() {
     } catch (e) {
       setStatus('editing');
       toast.error('Save failed', { description: e.message });
-    } finally {
-      setSaving(false);
     }
   }, []);
 
@@ -108,12 +97,38 @@ export default function App() {
 
   const save = () => write({ quiet: false });
 
+  // The editor itself, once it has started. It reports what was typed on a
+  // 200ms debounce of its own, so for the moments where losing a sentence
+  // matters - closing the tab, leaving the note, asking for a save outright -
+  // the markdown is read straight out of it rather than waited for.
+  const editor = useRef(null);
+
+  const syncFromEditor = () => {
+    const crepe = editor.current;
+    const current = noteRef.current;
+    if (!crepe || !current) return false;
+    let markdown;
+    try {
+      markdown = crepe.getMarkdown();
+    } catch {
+      return false; // an editor that never finished starting has nothing to give
+    }
+    if (markdown === undefined || markdown === current.content) return false;
+    const next = { ...current, content: markdown };
+    noteRef.current = next;
+    setNote(next);
+    setStatus('editing');
+    autosave.schedule(next);
+    return true;
+  };
+
   // A pending save is the one thing a reload can lose. This effect has to sit
   // below `autosave`: its dependency array is read while rendering, so naming
   // `autosave` above the useMemo that builds it is a use-before-init crash.
   useEffect(() => {
     const onLeave = (e) => {
-      if (!autosave.pending()) return;
+      const unreported = syncFromEditor();
+      if (!unreported && !autosave.pending()) return;
       autosave.flush();
       e.preventDefault();
       e.returnValue = '';
@@ -126,14 +141,37 @@ export default function App() {
   // there is no textarea to receive it, so the browser opened Save Page As —
   // which cancels whatever request is in flight and surfaced as a spurious
   // "Could not load notes / Failed to fetch".
+  // Ctrl+S no longer closes anything - there is nothing to close. It is the
+  // keystroke a hand reaches for to mean "make sure that is safe", so it
+  // lands the pending save now instead of waiting out the timer.
   const onSaveKey = useRef(null);
   onSaveKey.current = () => {
-    if (mode === 'write') return saveAndRead();
-    return autosave.flush(); // nothing to save while reading, bar a stray timer
+    if (!noteRef.current) return undefined;
+    syncFromEditor();
+    autosave.cancel();
+    return save();
   };
+
+  // Escape used to put the note back to how it had been, which is how a key a
+  // hand reaches for to mean "I am done here" became a key that could cost an
+  // afternoon. The terminal stopped doing that in #27 and this is the other
+  // half of it: the writing stays, and Escape just steps out of the text.
+  // Taking an edit back is what undo and the thirty-day trash are for.
+  const stepOut = () => {
+    syncFromEditor();
+    autosave.flush();
+    document.activeElement?.blur?.();
+  };
+
+  const onEscape = useRef(null);
+  onEscape.current = stepOut;
 
   useEffect(() => {
     const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onEscape.current?.();
+        return;
+      }
       const mod = e.ctrlKey || e.metaKey;
       if (!mod || e.shiftKey || e.key.toLowerCase() !== 's') return;
       e.preventDefault();
@@ -143,57 +181,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Clicking the prose is the whole gesture: the note stays put, the pane
-  // turns into its source, and the cursor lands where the click did.
-  const openAt = (offset) => {
-    setBaseline(note.content);
-    setMode('write');
-    // Always a fresh object, so clicking the same block twice moves the cursor
-    // back to it. A null offset still focuses; it just does not aim.
-    setCaretAt({ offset });
-  };
-
-  // Esc puts back what was there when writing began and saves that, so the
-  // discard is one more save rather than a second mechanism — and it survives
-  // a reload, which matters now that typing alone writes to disk.
-  const cancel = async () => {
-    autosave.cancel();
-    setCaretAt(null);
-    setMode('read');
-    if (!note || note.content === baseline) return;
-    const restored = { ...note, content: baseline };
-    setNote(restored);
-    setDirty(false);
-    setStatus('saving');
-    noteRef.current = restored;
-    await write({ quiet: true });
-  };
-
-  // Ticking a box while reading is a finished act, not a draft, so it saves at
-  // once and the note stays rendered. The terminal has no equivalent.
-  const toggleTask = async (offset) => {
-    const current = noteRef.current;
-    if (!current) return;
-    const content = toggleTaskAt(current.content, offset);
-    if (content === current.content) return;
-    const next = { ...current, content };
-    setNote(next);
-    noteRef.current = next;
-    await write({ quiet: true });
-  };
-
-  const saveAndRead = async () => {
-    autosave.cancel();
-    await save();
-    setMode('read');
-    setCaretAt(null);
-  };
-
   const remove = async (id) => {
     try {
       await deleteNote(id);
       setNote(null);
-      setMode('read');
       setDeleted((d) => [...d, id]);
       await Promise.all([refresh(query), refreshTrash()]);
       toast.success('Moved to trash', {
@@ -211,7 +202,6 @@ export default function App() {
       setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
       setNote(restored);
-      setMode('read');
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });
@@ -257,12 +247,15 @@ export default function App() {
         onSelect={async (next) => {
           // A save waiting on a timer belongs to the note being left, so it
           // has to land before the open note changes under it.
+          // Whatever is still sitting in the editor's own debounce belongs to
+          // the note being left, not the one being opened.
+          syncFromEditor();
           await autosave.flush();
           setNote(next);
-          setMode('read');
-          setCaretAt(null);
-          setDirty(false);
-          setStatus('saved');
+                setStatus('saved');
+          // Now that the note being written has been left, the list can catch
+          // up with what the writing did to it.
+          refresh(query);
         }}
         onNew={startNew}
         query={query}
@@ -278,23 +271,17 @@ export default function App() {
           {note ? (
             <NotePane
               note={note}
-              mode={mode}
-              caretAt={caretAt}
               status={status}
-              onOpenAt={openAt}
-              onToggleTask={toggleTask}
               onChange={(next) => {
                 setNote(next);
-                setDirty(true);
                 setStatus('editing');
                 noteRef.current = next;
                 autosave.schedule(next);
               }}
-              onSave={saveAndRead}
-              onCancel={cancel}
               onDelete={remove}
-              saving={saving}
-              dirty={dirty || !note.id}
+              onReady={(crepe) => {
+                editor.current = crepe;
+              }}
             />
           ) : (
             <EmptyState onNew={startNew} />
