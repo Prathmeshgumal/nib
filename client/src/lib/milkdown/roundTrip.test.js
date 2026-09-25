@@ -72,3 +72,17 @@ describe('tables', () => {
     expect(await roundTrip(aligned)).toBe(aligned);
   });
 });
+
+describe('marks on a link', () => {
+  // ProseMirror holds emphasis and the link as two marks on the same text, so
+  // the serializer writes them in its own order: `[**x**](y)` comes back as
+  // `**[x](y)**`. The two render identically and the URL is untouched. Pinned
+  // because it rewrites a line the terminal wrote, and a surprise found later
+  // is worse than one written down now.
+  it('move outside the link, and the link survives', async () => {
+    expect(await roundTrip('See [**the docs**](https://example.com/a) now.\n'))
+      .toBe('See **[the docs](https://example.com/a)** now.\n');
+    expect(await roundTrip('See *[docs](https://example.com/a)* now.\n'))
+      .toBe('See *[docs](https://example.com/a)* now.\n');
+  });
+});
