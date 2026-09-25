@@ -3,7 +3,7 @@ import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
-import { attachmentSchema } from './attachmentNode';
+import { attachment } from './attachmentNode';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -110,7 +110,7 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
     })
     .use(imageFixes)
-    .use(attachmentSchema);
+    .use(attachment);
   return crepe;
 }
 

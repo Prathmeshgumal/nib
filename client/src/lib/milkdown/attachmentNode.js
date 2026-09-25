@@ -1,5 +1,6 @@
-import { $nodeSchema } from '@milkdown/kit/utils';
+import { $nodeSchema, $view } from '@milkdown/kit/utils';
 import { kindOf, storedName } from '@/lib/attachments';
+import { renderAttachment } from './attachmentView';
 
 export const ATTACHMENT = 'nib-attachment';
 
@@ -75,3 +76,27 @@ export const attachmentSchema = $nodeSchema(ATTACHMENT, () => ({
     },
   },
 }));
+
+// The node view: ProseMirror asks for the DOM, renderAttachment builds it.
+//
+// contentEditable is off for the whole box. It is an atom - there is nothing
+// inside it to type into - and without this the caret can be placed among the
+// player's controls, where every keystroke goes nowhere.
+export const attachmentView = $view(attachmentSchema.node, () => (node) => {
+  const dom = renderAttachment(node.attrs);
+  dom.contentEditable = 'false';
+  return {
+    dom,
+    // The box is rebuilt only when the file or its label changes; a redraw on
+    // every transaction would restart whatever is playing.
+    update: (next) =>
+      next.type.name === ATTACHMENT &&
+      next.attrs.src === node.attrs.src &&
+      next.attrs.text === node.attrs.text,
+    // The player owns its own clicks: play, pause, scrub, and the grip.
+    stopEvent: () => true,
+    ignoreMutation: () => true,
+  };
+});
+
+export const attachment = [attachmentSchema, attachmentView];
