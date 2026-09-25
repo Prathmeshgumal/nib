@@ -12,3 +12,15 @@ class NoopObserver {
 
 globalThis.IntersectionObserver ??= NoopObserver;
 globalThis.ResizeObserver ??= NoopObserver;
+
+// jsdom has MouseEvent but not PointerEvent, and the resize grip is driven by
+// pointer events so that one gesture covers mouse, pen and touch.
+if (typeof globalThis.PointerEvent === 'undefined') {
+  globalThis.PointerEvent = class PointerEvent extends globalThis.MouseEvent {
+    constructor(type, params = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 1;
+      this.pointerType = params.pointerType ?? 'mouse';
+    }
+  };
+}

@@ -3,6 +3,7 @@ import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
+import { attachment } from './attachmentNode';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -108,7 +109,8 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       // and then holds - see the idempotency test.
       ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
     })
-    .use(imageFixes);
+    .use(imageFixes)
+    .use(attachment);
   return crepe;
 }
 
@@ -124,3 +126,7 @@ export async function roundTrip(markdown) {
   root.remove();
   return out;
 }
+
+// roundTripWithAttachments is the same measurement as roundTrip, kept separate
+// only so the attachment tests name what they are exercising.
+export const roundTripWithAttachments = roundTrip;
