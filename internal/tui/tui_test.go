@@ -90,7 +90,10 @@ func TestCreateNoteFlow(t *testing.T) {
 	}
 }
 
-func TestEscapeDiscardsEdit(t *testing.T) {
+// Escape closes the editor. It used to discard the writing with it; now that
+// a note saves itself, keeping the writing is the whole point - see
+// TestEscapeKeepsWhatWasTyped and the rest in autosave_test.go.
+func TestEscapeClosesTheEditor(t *testing.T) {
 	m, st := newTestModel(t)
 	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = press(m, key('n'))
@@ -100,8 +103,8 @@ func TestEscapeDiscardsEdit(t *testing.T) {
 	if m.mode != modeList {
 		t.Errorf("mode = %v, want list", m.mode)
 	}
-	if notes := mustList(t, st); len(notes) != 0 {
-		t.Errorf("escape should not save, but found %d notes", len(notes))
+	if notes := mustList(t, st); len(notes) != 1 {
+		t.Errorf("escape kept %d notes, want the one that was written", len(notes))
 	}
 }
 

@@ -22,9 +22,9 @@ Some things worth trying:
 3. ` + "`w`" + ` opens the same notes in your browser
 4. ` + "`d`" + ` moves a note to the trash, and ` + "`u`" + ` brings it back
 
-Your writing saves itself as you go, so ` + "`ctrl+s`" + ` is only for
-when you want to go back to the list, and ` + "`esc`" + ` puts the note
-back to how it was. ` + "`ctrl+p`" + ` previews what you are writing.
+Your writing saves itself as you go. ` + "`esc`" + ` and
+` + "`ctrl+s`" + ` both just close the editor and keep it, and
+` + "`ctrl+p`" + ` previews what you are writing.
 
 | Key | Does |
 | --- | --- |

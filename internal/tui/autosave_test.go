@@ -96,7 +96,7 @@ func TestTheLatestAutosaveWritesEverythingTypedSoFar(t *testing.T) {
 	}
 }
 
-func TestEscapePutsBackWhatWasThereBeforeEditing(t *testing.T) {
+func TestEscapeKeepsWhatWasTyped(t *testing.T) {
 	m, st := newTestModel(t)
 	n, err := st.Create("Standup", "old")
 	if err != nil {
@@ -106,19 +106,22 @@ func TestEscapePutsBackWhatWasThereBeforeEditing(t *testing.T) {
 	m = press(m, reloadedMsg{notes: mustList(t, st)})
 	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
 	m = press(m, key('!'))
-	m = press(m, autosaveMsg{gen: m.gen}) // the note on disk now says "old!"
+	m = press(m, autosaveMsg{gen: m.gen})
 
 	m = press(m, tea.KeyMsg{Type: tea.KeyEsc})
 
-	if got := contentOf(t, st, n.ID); got != "old" {
-		t.Errorf("stored content = %q, want %q: escape undoes the autosaves too", got, "old")
+	if got := contentOf(t, st, n.ID); got != "old!" {
+		t.Errorf("stored content = %q, want %q: escape leaves the writing alone", got, "old!")
 	}
 	if m.mode != modeList {
 		t.Errorf("mode = %v, want modeList", m.mode)
 	}
 }
 
-func TestEscapeAlsoPutsBackTheTitle(t *testing.T) {
+// Escape is the reflex for "I am done here", so it has to be a way out that
+// cannot cost anything - including in the second before the timer would have
+// fired on its own.
+func TestEscapeSavesWritingTheTimerHasNotReachedYet(t *testing.T) {
 	m, st := newTestModel(t)
 	n, err := st.Create("Standup", "old")
 	if err != nil {
@@ -127,84 +130,48 @@ func TestEscapeAlsoPutsBackTheTitle(t *testing.T) {
 	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = press(m, reloadedMsg{notes: mustList(t, st)})
 	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
-	m = press(m, tea.KeyMsg{Type: tea.KeyTab}) // to the title
-	m = press(m, key('?'))
-	m = press(m, autosaveMsg{gen: m.gen})
+	m = press(m, key('!')) // no autosaveMsg: the pause never happened
 
 	m = press(m, tea.KeyMsg{Type: tea.KeyEsc})
 
-	got, err := st.Get(n.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Title != "Standup" {
-		t.Errorf("stored title = %q, want %q", got.Title, "Standup")
+	if got := contentOf(t, st, n.ID); got != "old!" {
+		t.Errorf("stored content = %q, want %q", got, "old!")
 	}
 }
 
-func TestEscapeOnANoteAutosaveCreatedSendsItToTheTrash(t *testing.T) {
+func TestEscapeKeepsANewNote(t *testing.T) {
 	m, st := newTestModel(t)
 	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = press(m, reloadedMsg{notes: mustList(t, st)})
-	m = press(m, key('n')) // a brand-new note
+	m = press(m, key('n'))
 	m = press(m, key('h'))
 	m = press(m, key('i'))
-	m = press(m, autosaveMsg{gen: m.gen}) // autosave had to create it
 
 	m = press(m, tea.KeyMsg{Type: tea.KeyEsc})
 
-	live, err := st.List("")
-	if err != nil {
-		t.Fatal(err)
+	notes := mustList(t, st)
+	if len(notes) != 1 || notes[0].Content != "hi" {
+		t.Fatalf("live notes = %v, want the one note that was written", notes)
 	}
-	for _, n := range live {
-		if n.Content == "hi" {
-			t.Fatalf("the abandoned note is still in the list as %q", n.Title)
-		}
-	}
-	// Discarding is not destroying: it has to be recoverable, like any delete.
 	trash, err := st.Trash()
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
-	for _, n := range trash {
-		if n.Content == "hi" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("the abandoned note is not in the trash: escape must be recoverable")
+	if len(trash) != 0 {
+		t.Errorf("trash holds %d notes, want 0: escape is not a delete", len(trash))
 	}
 }
 
-func TestEscapeWithNothingAutosavedLeavesTheNoteAlone(t *testing.T) {
+func TestEscapeOnAnUntouchedNewNoteCreatesNothing(t *testing.T) {
 	m, st := newTestModel(t)
-	n, err := st.Create("Standup", "old")
-	if err != nil {
-		t.Fatal(err)
-	}
-	before, err := st.Get(n.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
 	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = press(m, reloadedMsg{notes: mustList(t, st)})
-	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
-	m = press(m, key('!')) // typed, but never autosaved
+	m = press(m, key('n'))
 
 	m = press(m, tea.KeyMsg{Type: tea.KeyEsc})
 
-	after, err := st.Get(n.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if after.Content != "old" {
-		t.Errorf("stored content = %q, want %q", after.Content, "old")
-	}
-	// Nothing was written, so nothing should have been rewritten either.
-	if after.UpdatedAt != before.UpdatedAt {
-		t.Error("escape wrote the note back even though no autosave had run")
+	if notes := mustList(t, st); len(notes) != 0 {
+		t.Errorf("store holds %d notes, want 0", len(notes))
 	}
 }
 
@@ -306,12 +273,18 @@ func TestAnAutosaveAfterLeavingTheEditorWritesNothing(t *testing.T) {
 	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
 	m = press(m, key('!'))
 	pending := m.gen
-	m = press(m, tea.KeyMsg{Type: tea.KeyEsc}) // left before the timer fired
+	m = press(m, tea.KeyMsg{Type: tea.KeyEsc}) // leaving flushes "old!"
 
+	// Somebody else - the web UI on the same file, the next edit - moves the
+	// note on. A timer left over from the closed editor must not undo that by
+	// writing the draft it was holding.
+	if _, err := st.Update(n.ID, "Standup", "written somewhere else"); err != nil {
+		t.Fatal(err)
+	}
 	m = press(m, autosaveMsg{gen: pending})
 
-	if got := contentOf(t, st, n.ID); got != "old" {
-		t.Errorf("stored content = %q, want %q: a timer must not write after the editor closed", got, "old")
+	if got := contentOf(t, st, n.ID); got != "written somewhere else" {
+		t.Errorf("stored content = %q, want %q: a timer wrote after the editor closed", got, "written somewhere else")
 	}
 }
 

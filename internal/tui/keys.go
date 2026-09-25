@@ -23,9 +23,9 @@ func (m model) helpLine() string {
 		// bar exists for while you are writing, which is whether it is safe
 		// to walk away.
 		if m.previewDraft {
-			return m.draftState() + "   ctrl+p back to writing   ctrl+s save and close   esc revert"
+			return m.draftState() + "   ctrl+p back to writing   ctrl+s close   esc close"
 		}
-		return m.draftState() + "  ctrl+s save and close  ctrl+p preview  ctrl+b bold  alt+i italic  ctrl+k link  ? in help: all keys  esc revert"
+		return m.draftState() + "  ctrl+s close  ctrl+p preview  ctrl+b bold  alt+i italic  ctrl+k link  ? in help: all keys  esc close"
 	case modeConfirm:
 		return "y confirm   n / esc cancel"
 	case modeRaw:
@@ -83,12 +83,13 @@ const helpText = `
     e            edit it straight in $EDITOR
 
   While editing
-    Your writing saves itself about a second after you stop typing, so
-    neither of the two ways out of the editor can lose it.
+    Your writing saves itself about a second after you stop typing. Both
+    ways out of the editor keep it, so neither can lose an afternoon.
+    To take an edit back, leave and press u, or use the trash.
 
-    ctrl+s       save and close        tab      switch title / body
+    ctrl+s       close the editor      tab      switch title / body
     ctrl+p       preview the draft     ctrl+e   hand it to $EDITOR
-    esc          put the note back to how it was, and close
+    esc          close the editor
 
   Lists carry on by themselves
     ↵            at the end of a list item, starts the next one:
