@@ -171,12 +171,18 @@
   border-color: var(--border);
 }
 
-/* The menu behind the drag handle. It lives on document.body rather than
- * inside the editor, so it takes the tokens directly instead of Crepe's. */
+/* The menu behind the six dots. It lives on document.body rather than inside
+ * the editor, so it takes nib's tokens directly instead of Crepe's.
+ *
+ * Not Crepe's own slash menu: that one exists to turn what you have just typed
+ * into a block, and every item in it clears the block's text first - which on a
+ * paragraph that already holds a sentence would delete the sentence. */
 .nib-block-menu {
   position: absolute;
   z-index: 50;
-  min-width: 10rem;
+  min-width: 13rem;
+  max-height: min(24rem, 70vh);
+  overflow-y: auto;
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -188,11 +194,31 @@
   font-size: 0.875rem;
 }
 
+/* The group headings carry the only structure in the list, so they are set
+ * small and quiet rather than as rows of their own. */
+.nib-block-menu-label {
+  padding: 6px 10px 2px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.nib-block-menu-label:not(:first-child) {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
 .nib-block-menu-item {
   appearance: none;
   background: none;
   border: 0;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 6px 10px;
   border-radius: calc(var(--radius) - 2px);
   color: inherit;
@@ -200,12 +226,28 @@
   font: inherit;
 }
 
+.nib-block-menu-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted-foreground);
+}
+
+.nib-block-menu-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .nib-block-menu-item:hover,
 .nib-block-menu-item:focus-visible {
   background: var(--accent);
 }
 
-.nib-block-menu-item.danger {
+.nib-block-menu-item:hover .nib-block-menu-icon {
+  color: var(--foreground);
+}
+
+.nib-block-menu-item.danger,
+.nib-block-menu-item.danger .nib-block-menu-icon {
   color: var(--destructive);
 }
 
