@@ -723,7 +723,7 @@ Measured on an Intel i5-13450HX running Ubuntu, with a **1,000-note** database.
 
 | | |
 | --- | --- |
-| Binary | **21.5 MB**, static, stripped |
+| Binary | **20.8 MB**, static, stripped |
 | Ready with 1,000 notes | **18.7 ms** median (18–20 ms) |
 | Memory, terminal UI | **28 MB** resident |
 | Memory, web server | **24.6 MB** idle, 28.5 MB under load |
