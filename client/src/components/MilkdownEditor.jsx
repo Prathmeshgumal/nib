@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
+import '@/lib/milkdown/crepe.css';
 import { createEditor } from '@/lib/milkdown/editorConfig';
+import { tidyEscapes } from '@/lib/milkdown/tidyEscapes';
 import { uploadAttachment } from '@/lib/api';
 
 // The note, as one surface. There is no read mode and no write mode any more:
@@ -37,6 +39,11 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
     };
 
     crepe = createEditor(root, { markdown: note.content ?? '', onUpload });
+
+    // Everything the editor hands out goes through here, so the note and the
+    // yardstick below are always the same flavour of markdown - otherwise the
+    // tidying would itself read as an edit on the very next comparison.
+    const read = () => tidyEscapes(crepe.getMarkdown());
     crepe.on((listener) => {
       listener.markdownUpdated((_ctx, markdown, previous) => {
         // Two different documents can serialize to the same markdown - a
@@ -47,9 +54,10 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
         // fires once it has a previous document to compare against, so
         // opening a note is silent.
         if (markdown === previous) return;
-        reported = markdown;
+        const tidied = tidyEscapes(markdown);
+        reported = tidied;
         const current = latest.current;
-        current.onChange?.({ ...current.note, content: markdown });
+        current.onChange?.({ ...current.note, content: tidied });
       });
     });
 
@@ -65,7 +73,7 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
         // The note as the editor holds it: anything different from here on is
         // something the typist did.
         try {
-          reported = crepe.getMarkdown();
+          reported = read();
         } catch {
           // Leave the note's own text as the yardstick.
         }
@@ -79,7 +87,7 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
           pendingMarkdown() {
             let markdown;
             try {
-              markdown = crepe.getMarkdown();
+              markdown = read();
             } catch {
               return null;
             }
@@ -101,7 +109,7 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
       // sentence of a note being lost to a closed tab or a switched note -
       // the failure autosave exists to prevent in the first place.
       try {
-        const last = crepe?.getMarkdown();
+        const last = crepe ? read() : undefined;
         if (last !== undefined && last !== reported) {
           const current = latest.current;
           current.onChange?.({ ...current.note, content: last });
