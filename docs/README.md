@@ -60,8 +60,13 @@ a browser screenshot is a raster image; the terminal shots above stay SVG.
 tree is dynamically linked against libc. Releases are not: `.github/workflows/release.yml`
 sets `CGO_ENABLED=0` and fails the build if `file` does not say "statically linked".
 
-Measure the size of a release-equivalent build, not of `./nib`:
+Do not quote the size of any local build. A local `CGO_ENABLED=0` build still
+embeds whatever is in `internal/web/dist`, which is not what CI's `npm ci`
+produces — the two differed by 0.7 MB at v1.6.0. Read the figure off the
+published asset instead:
 
 ```bash
-CGO_ENABLED=0 go build -ldflags "-s -w" -o /tmp/nib-rel .
+gh release download v1.6.0 --dir /tmp/rel
+cd /tmp/rel && sha256sum -c checksums.txt
+ls -l nib-linux-amd64
 ```
