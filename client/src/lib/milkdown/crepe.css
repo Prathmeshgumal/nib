@@ -75,11 +75,16 @@
   min-height: 100%;
 }
 
-/* A line of prose is easier to read when it stops before the window does. It
- * is capped rather than centred so the first character sits under the note's
- * title, instead of drifting away from it as the window widens. */
+/* A line of prose is easier to read when it stops before the window does. The
+ * column is centred, and the note's title and status line above it are held to
+ * the same width, so the whole note reads as one column.
+ *
+ * The space either side is not only margin: Crepe's drag handle is placed to
+ * the left of the block it belongs to, and floating-ui flips it to the right
+ * when there is no room. Against the edge of the pane there was none. */
 .nib-editor .milkdown .ProseMirror {
-  max-width: 46rem;
+  max-width: var(--nib-column);
+  margin-inline: auto;
 }
 
 /* Crepe paints a code block in `surface`, the same colour as the menus that
