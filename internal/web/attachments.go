@@ -86,7 +86,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":       ref.ID,
+		"id": ref.ID,
+		// The name the file has on disk, which is what a link or an <img> has
+		// to point at. "name" below is the original filename and only ever
+		// serves as link text - a caller that builds a URL out of it gets a
+		// path to a file that was never written.
+		"stored":   ref.Base(),
 		"name":     ref.Name,
 		"mime":     ref.MIME,
 		"size":     ref.Size,

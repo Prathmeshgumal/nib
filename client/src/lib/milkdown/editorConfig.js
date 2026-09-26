@@ -96,7 +96,12 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     features: {
       [Crepe.Feature.Latex]: false, // katex is aliased away at build time
       [Crepe.Feature.AI]: false,
-      [Crepe.Feature.TopBar]: false, // the bubble toolbar is the design
+      // Both toolbars, not one: the bubble over a selection is for changing
+      // text you have already written, and the bar at the top is for choosing
+      // what you are about to write. Needing to know the slash menu exists
+      // before you can start a heading is not a design, it is a gap.
+      // Crepe ships this one off by default, so it has to be asked for.
+      [Crepe.Feature.TopBar]: true,
       ...features,
     },
     featureConfigs: onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {},

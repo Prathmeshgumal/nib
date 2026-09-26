@@ -84,6 +84,7 @@ func TestUploadStoresAndDescribes(t *testing.T) {
 	var got struct {
 		ID       string `json:"id"`
 		Name     string `json:"name"`
+		Stored   string `json:"stored"`
 		Markdown string `json:"markdown"`
 		MIME     string `json:"mime"`
 	}
@@ -95,6 +96,16 @@ func TestUploadStoresAndDescribes(t *testing.T) {
 	}
 	if want := "![holiday photo.png](attachments/" + got.ID + ".png)"; got.Markdown != want {
 		t.Errorf("markdown = %q, want %q", got.Markdown, want)
+	}
+
+	// The web editor builds an <img> src out of this, so it has to be the name
+	// on disk and not the name the file arrived under. They differ here on
+	// purpose: "holiday photo.png" has a space in it and is not a hash.
+	if want := got.ID + ".png"; got.Stored != want {
+		t.Errorf("stored = %q, want %q", got.Stored, want)
+	}
+	if got.Stored == got.Name {
+		t.Errorf("stored = %q, which is the upload's own filename", got.Stored)
 	}
 
 	// And it is immediately servable at the path that markdown names.
