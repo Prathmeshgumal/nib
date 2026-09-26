@@ -30,7 +30,7 @@ export default function NoteList({
   onUndo,
 }) {
   return (
-    <aside className="bg-muted/40 flex w-full shrink-0 flex-col border-r md:w-80">
+    <aside className="bg-muted flex w-full shrink-0 flex-col border-r md:w-80">
       <div className="flex items-center justify-between gap-2 px-4 py-3.5">
         <div className="flex items-center gap-2">
           <NotebookPen className="size-5" />

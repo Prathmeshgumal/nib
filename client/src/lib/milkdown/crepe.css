@@ -22,7 +22,11 @@
   --crepe-color-on-surface: var(--popover-foreground);
   --crepe-color-on-surface-variant: var(--muted-foreground);
 
-  --crepe-color-outline: var(--border);
+  /* Crepe spends `outline` almost entirely on icon fills and small text, not
+   * on borders. Pointing it at nib's border token - which is a 10% white in
+   * dark mode - left the drag handle's dots and the block menu's icons at the
+   * weight of a hairline, which is to say invisible. */
+  --crepe-color-outline: var(--muted-foreground);
   --crepe-color-primary: var(--primary);
   --crepe-color-secondary: var(--secondary);
   --crepe-color-on-secondary: var(--secondary-foreground);
@@ -134,4 +138,31 @@
   border: 1px solid var(--border);
   padding: 0.1em 0.3em;
   font-size: 0.9em;
+}
+
+/* Where a dragged block will land. Crepe mixes this from `outline` and then
+ * halves it again with opacity, which on any sane border colour comes out at a
+ * few percent - the reason dragging a section felt like dropping it blind. */
+.milkdown .crepe-drop-cursor {
+  background-color: var(--nib-accent);
+  opacity: 1;
+  border-radius: 2px;
+}
+
+/* The handle and the plus beside a block are the only things that say a block
+ * can be moved at all, so they read as buttons rather than as marks. */
+.milkdown .milkdown-block-handle .operation-item {
+  border-radius: 6px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.milkdown .milkdown-block-handle .operation-item:hover svg {
+  fill: var(--foreground);
+}
+
+/* The two places Crepe does use `outline` as a border: the code block's
+ * language panel. A solid mid-grey there would be a heavy box. */
+.milkdown .milkdown-code-block .cm-panel,
+.milkdown .milkdown-code-block .cm-panel input {
+  border-color: var(--border);
 }
