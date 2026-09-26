@@ -1,8 +1,7 @@
-import { Clock, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { DeleteNoteDialog } from '@/components/DeleteNoteDialog';
 import MilkdownEditor from '@/components/MilkdownEditor';
 import { fullTime, relativeTime } from '@/lib/time';
@@ -11,44 +10,69 @@ import { fullTime, relativeTime } from '@/lib/time';
 // come back to: what is on screen is the note, and typing into it is how it
 // changes. The chrome here is everything around the writing - the title, when
 // it was last touched, whether it is safe, and the way to throw it away.
-//
-// Everything shares the one column width, so the title sits directly above the
-// first line of the note however wide the window gets.
 const STATUS = { editing: 'Editing', saving: 'Saving…', saved: 'Saved' };
 
-export default function NotePane({ note, status, onChange, onDelete, onReady }) {
+function Meta({ note, status, onChange, onDelete }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="mx-auto flex w-full max-w-(--nib-column) flex-wrap items-start justify-between gap-3">
-        <Input
-          value={note.title}
-          placeholder="Note title…"
-          aria-label="Note title"
-          className="h-auto min-w-0 flex-1 border-0 px-0 text-xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-          onChange={(e) => onChange({ ...note, title: e.target.value })}
-        />
-        <div className="flex items-center gap-2">
-          <DeleteNoteDialog title={note.title} onConfirm={() => onDelete(note.id)}>
-            <Button variant="outline" size="icon" aria-label="Delete note">
-              <Trash2 className="text-destructive" />
-            </Button>
-          </DeleteNoteDialog>
+    <>
+      <Input
+        value={note.title}
+        placeholder="Note title…"
+        aria-label="Note title"
+        className="h-7 min-w-0 flex-1 border-0 px-0 text-right text-sm font-medium shadow-none focus-visible:ring-0"
+        onChange={(e) => onChange({ ...note, title: e.target.value })}
+      />
+
+      <span
+        className="text-muted-foreground hidden shrink-0 text-xs md:inline"
+        title={note.updated_at ? fullTime(note.updated_at) : undefined}
+      >
+        {note.updated_at ? relativeTime(note.updated_at) : 'Not saved yet'}
+      </span>
+
+      {/* The one word that says whether what is on screen has reached the
+          note. The terminal shows the same two, for the same reason. */}
+      <Badge variant="outline" className="shrink-0">
+        {STATUS[status] ?? 'Saved'}
+      </Badge>
+
+      <DeleteNoteDialog title={note.title} onConfirm={() => onDelete(note.id)}>
+        <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="Delete note">
+          <Trash2 className="text-destructive" />
+        </Button>
+      </DeleteNoteDialog>
+    </>
+  );
+}
+
+// Where the title and status go depends on whether there is room for them.
+//
+// Wide enough, and they sit at the right-hand end of the editor's own toolbar,
+// which is mostly empty there - so they cost the writing no vertical space at
+// all. They are laid over the bar rather than put inside it, because the bar
+// belongs to Milkdown; the bar is given matching right padding in crepe.css so
+// no button can ever end up underneath them.
+//
+// Narrow, and that trade stops paying: reserving a third of the bar for them
+// pushes its buttons into four or five wrapped rows, which costs far more than
+// the row it saved. So below `lg` they take a line of their own.
+export default function NotePane({ note, status, onChange, onDelete, onReady }) {
+  const meta = { note, status, onChange, onDelete };
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col gap-2 lg:gap-0 lg:[--nib-meta:21rem]">
+      <div className="flex items-center gap-2 lg:hidden">
+        <Meta {...meta} />
+      </div>
+
+      {/* h-11 is the toolbar's own min-height, which is what puts these on its
+          line. The strip ignores pointer events so the bar stays clickable
+          underneath it; the cluster itself takes them back. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 hidden h-11 items-center justify-end lg:flex">
+        <div className="bg-popover pointer-events-auto flex w-(--nib-meta) min-w-0 items-center justify-end gap-2 pr-1 pl-4">
+          <Meta {...meta} />
         </div>
       </div>
-
-      <div className="text-muted-foreground mx-auto flex w-full max-w-(--nib-column) items-center gap-1.5 text-xs">
-        <Clock className="size-3.5" />
-        <span title={note.updated_at ? fullTime(note.updated_at) : undefined}>
-          {note.updated_at ? `Updated ${relativeTime(note.updated_at)}` : 'Not saved yet'}
-        </span>
-        {/* The one word that says whether what is on screen has reached the
-            note. The terminal shows the same two, for the same reason. */}
-        <Badge variant="outline" className="ml-1">
-          {STATUS[status] ?? 'Saved'}
-        </Badge>
-      </div>
-
-      <Separator />
 
       <MilkdownEditor note={note} onChange={onChange} onReady={onReady} />
     </div>

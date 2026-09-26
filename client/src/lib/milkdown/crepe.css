@@ -69,9 +69,13 @@
 .milkdown .ProseMirror h3:first-child { margin-top: 0; }
 
 /* The editor fills the pane it is given and scrolls inside it, so the sidebar
- * and the note's title stay put while the writing moves. */
+ * and the note's title stay put while the writing moves.
+ *
+ * min-height, not height: the top bar is sticky, and a sticky element can only
+ * travel inside its containing block. Pinned to exactly one viewport, it slid
+ * away as soon as you scrolled past the first screen. */
 .nib-editor .milkdown {
-  height: 100%;
+  min-height: 100%;
 }
 
 .nib-editor .milkdown .ProseMirror {
@@ -165,4 +169,49 @@
 .milkdown .milkdown-code-block .cm-panel,
 .milkdown .milkdown-code-block .cm-panel input {
   border-color: var(--border);
+}
+
+/* The menu behind the drag handle. It lives on document.body rather than
+ * inside the editor, so it takes the tokens directly instead of Crepe's. */
+.nib-block-menu {
+  position: absolute;
+  z-index: 50;
+  min-width: 10rem;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  font-size: 0.875rem;
+}
+
+.nib-block-menu-item {
+  appearance: none;
+  background: none;
+  border: 0;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.nib-block-menu-item:hover,
+.nib-block-menu-item:focus-visible {
+  background: var(--accent);
+}
+
+.nib-block-menu-item.danger {
+  color: var(--destructive);
+}
+
+/* The note's title, time and status sit at the right-hand end of this bar, laid
+ * over it from NotePane. They are not children of it, so the space they need
+ * has to be kept clear here or the bar wraps its buttons underneath them. */
+.nib-editor .milkdown-top-bar {
+  padding-right: var(--nib-meta, 0);
 }
