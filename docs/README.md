@@ -53,3 +53,15 @@ board would render dark text on a dark page for half the readers.
 browser UI, taken at 1440×900 against a throwaway database of demo notes — never
 against real ones, since the file is published. PNG rather than SVG here because
 a browser screenshot is a raster image; the terminal shots above stay SVG.
+
+## A note on the binary
+
+`./build.sh` compiles with cgo enabled, so the binary it leaves in the working
+tree is dynamically linked against libc. Releases are not: `.github/workflows/release.yml`
+sets `CGO_ENABLED=0` and fails the build if `file` does not say "statically linked".
+
+Measure the size of a release-equivalent build, not of `./nib`:
+
+```bash
+CGO_ENABLED=0 go build -ldflags "-s -w" -o /tmp/nib-rel .
+```
