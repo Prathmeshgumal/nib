@@ -437,42 +437,38 @@ While it's running, the status line shows the address.
 Richer editing, at <http://localhost:4321>. Same notes, live at the same time as the
 terminal — edit in one, press `r` in the terminal (or refresh the browser) to see it.
 
-**Toolbar:** heading, bold, italic, strikethrough, blockquote, inline code, code block,
-link, bulleted list, numbered list, task list, horizontal rule. Every button works on
-your selection, and pressing it again toggles the formatting off.
+**There is no edit mode.** A note opens as one surface and typing into it is how it
+changes — no Edit button to find, no Write/Preview tabs, no reading view to come back
+to. What is on screen is the note: a heading looks like a heading while you write it, a
+table is a table you can put the cursor in, and a code block has its own box. The
+Markdown is still what lands on disk, so the terminal reads the same file it always did.
 
-**Lists carry on here too.** `↵` at the end of an item starts the next one, exactly as
-[in the terminal](#lists-carry-on-by-themselves) — same rules, same tests. Two things the
-terminal cannot offer: **`Shift+↵`** for a line break inside an item (a terminal sends the
-same byte for it as for `↵`), and **`Tab` / `Shift+Tab`** to indent and outdent (a terminal
-spends `ctrl+i` on Tab itself). `Backspace` on an empty item clears the marker.
+**Type `/` for anything you want to insert** — heading, list, task list, quote, code
+block, table, divider, image. Select text and a small toolbar appears over it with bold,
+italic, strikethrough, inline code and link. The usual shortcuts work as you would
+expect: `Ctrl+B`, `Ctrl+I`, `Ctrl+K`, and Markdown itself is a shortcut — `# ` at the
+start of a line makes a heading, `- ` a bullet, `- [ ] ` a task, ``` a code block.
 
-**Tick a box without opening the editor.** Checkboxes in the rendered note are live — a
-single click ticks one and saves, with the note staying as it is.
+**Lists carry on by themselves,** the same as [in the terminal](#lists-carry-on-by-themselves).
+`Shift+↵` puts a line break inside an item, `Tab` and `Shift+Tab` indent and outdent, and
+`Backspace` on an empty item clears the marker. Checkboxes are live — click one and it
+ticks.
 
-**Shortcuts:** `Ctrl+B` bold, `Ctrl+I` italic, `Ctrl+K` link, `Ctrl+S` save, `Esc` cancel.
-`Ctrl+Shift+` and a letter reaches the rest: `X` tick, `L` bullets, `O` numbered, `T` task,
-`Q` quote, `C` code, `F` code block, `S` strikethrough, `H` heading, `R` rule.
-
-**Drag a file onto the editor** and it is attached — or paste one, so a screenshot goes
+**Drag a file onto the note** and it is attached — or paste one, so a screenshot goes
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
-See [images and files](#images-and-files) for where they are kept, and
-[files in the browser](#files-in-the-browser) for what the browser does with them.
-
-**Double-click the text and you are typing.** A note opens rendered, because rendered is
-how a note is worth reading. Double-click any part of it — a paragraph, a row well down a
-table, a bullet nested three deep — and the pane becomes its Markdown with the cursor
-already on the line you pointed at. There is no Edit button to find first. A single click
-is left for reading: selecting text, and following links.
+Images and video sit in the writing and can be dragged wider or narrower by the handle at
+their edge; the width is remembered per file. See [images and files](#images-and-files)
+for where they are kept, and [files in the browser](#files-in-the-browser) for what the
+browser does with them.
 
 **It saves as you go,** about a second after you stop typing and again when you leave the
-note, so nothing is lost if you never press anything. `Ctrl+S` still saves on demand and
-`Esc` still discards, exactly as they do in the terminal editor; `Esc` puts back whatever
-was there when you started writing, even if an autosave has already run. The badge by the
+note, so nothing is lost if you never press anything. `Ctrl+S` saves on demand. `Esc`
+steps out of the writing and saves what is there — it does not throw anything away,
+because on a surface with no edit mode there is no draft to discard. The badge by the
 title reads Editing, Saving… or Saved so you can always tell which.
 
-**Write / Preview tabs** while editing. There's a search box, a light/dark toggle that
-follows your system by default, and deleting asks for confirmation.
+There's a search box, a light/dark toggle that follows your system by default, and
+deleting asks for confirmation.
 
 **The trash**, the same one the terminal shows. The bin at the foot of the sidebar
 carries a count of what is recoverable and opens it: Restore on each note, a permanent

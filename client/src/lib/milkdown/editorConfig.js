@@ -5,6 +5,7 @@ import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import { attachment } from './attachmentNode';
 import { imageResize } from './imageResize';
+import { emptyTaskPlugin } from './emptyTask';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -112,7 +113,8 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     })
     .use(imageFixes)
     .use(attachment)
-    .use(imageResize);
+    .use(imageResize)
+    .use(emptyTaskPlugin);
   return crepe;
 }
 
