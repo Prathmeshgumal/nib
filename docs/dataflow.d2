@@ -1,0 +1,100 @@
+# What a keystroke turns into, and when.
+#
+# This is the diagram that backs the claim the README makes in prose: the
+# editor is a WYSIWYG, but Markdown is still what lands on disk. The
+# serializer sits in the middle of the pipeline, not at an export step, so
+# there is no moment where the browser holds a richer document than the
+# terminal can read.
+#
+# The three arrows into "save now" are the whole of nib's durability story:
+# a timer you never think about, and two keys you already press.
+#
+# Regenerate: see docs/README.md.
+
+direction: right
+
+style.fill: "#f8fafd"
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 0
+    pad: 20
+  }
+}
+
+classes: {
+  step: {
+    style: {
+      stroke: "#c3cfe1"
+      fill: "#ffffff"
+      font-color: "#08152b"
+      stroke-width: 1
+      border-radius: 4
+    }
+  }
+  key: {
+    style: {
+      stroke: "#1a46d8"
+      fill: "#e8edff"
+      font-color: "#08152b"
+      stroke-width: 2
+      border-radius: 4
+      bold: true
+    }
+  }
+  trigger: {
+    style: {
+      stroke: "#c3a900"
+      fill: "#fff6d2"
+      font-color: "#08152b"
+      stroke-width: 1
+      border-radius: 16
+    }
+  }
+  main: {
+    style: {
+      stroke: "#1a46d8"
+      stroke-width: 2
+      font-color: "#3b4a60"
+    }
+  }
+  wire: {
+    style: {
+      stroke: "#77869b"
+      font-color: "#3b4a60"
+    }
+  }
+}
+
+typing: "You type\nin the browser" {class: step}
+doc: "Milkdown\nrich document" {class: step}
+md: "Markdown\nserialized on every change" {class: key}
+save: "Save" {class: key}
+row: "One row in nib.db\ncontent is Markdown text" {class: step}
+term: "The terminal\nreads the same row" {class: step}
+
+typing -> doc: {class: main}
+doc -> md: {class: main}
+md -> save: {class: main}
+save -> row: "PUT /api/notes/:id" {class: main}
+row -> term: {class: wire}
+
+triggers: "What makes it save" {
+  style: {
+    stroke: "#c3a900"
+    fill: "#fffbeb"
+    font-color: "#3b4a60"
+    stroke-width: 1
+    stroke-dash: 4
+    border-radius: 6
+  }
+
+  idle: "About a second after\nyou stop typing" {class: trigger}
+  leaving: "Leaving the note,\nor closing the tab" {class: trigger}
+  asked: "Esc or Ctrl+S" {class: trigger}
+}
+
+triggers.idle -> save: {class: wire}
+triggers.leaving -> save: {class: wire}
+triggers.asked -> save: {class: wire}

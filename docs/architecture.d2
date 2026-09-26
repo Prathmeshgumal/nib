@@ -1,0 +1,95 @@
+# One binary, two views, one file.
+#
+# The point this makes, which prose can only assert: neither view has its own
+# copy of anything. Both go through internal/store, so a note written in the
+# terminal is not synced to the browser — there is nothing to sync, because
+# there is only ever one row.
+#
+# The board carries its own light background rather than going transparent.
+# README diagrams are read on GitHub in both themes, and d2's dark theme only
+# remaps its own palette classes, not the explicit colours below - so a
+# transparent board renders dark text on a dark page for half the readers.
+#
+# Regenerate: see docs/README.md.
+
+direction: right
+
+style.fill: "#f8fafd"
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 0
+    pad: 20
+  }
+}
+
+classes: {
+  box: {
+    style: {
+      stroke: "#c3cfe1"
+      fill: "#ffffff"
+      font-color: "#08152b"
+      stroke-width: 1
+      border-radius: 4
+    }
+  }
+  door: {
+    style: {
+      stroke: "#1a46d8"
+      fill: "#e8edff"
+      font-color: "#08152b"
+      stroke-width: 2
+      border-radius: 4
+      bold: true
+    }
+  }
+  group: {
+    style: {
+      stroke: "#77869b"
+      fill: "#eceff6"
+      font-color: "#3b4a60"
+      stroke-width: 1
+      stroke-dash: 4
+      border-radius: 6
+    }
+  }
+  wire: {
+    style: {
+      stroke: "#77869b"
+      font-color: "#3b4a60"
+    }
+  }
+  main: {
+    style: {
+      stroke: "#1a46d8"
+      stroke-width: 2
+      font-color: "#3b4a60"
+    }
+  }
+}
+
+binary: "nib — one 22 MB binary" {
+  class: group
+  direction: down
+
+  tui: "Terminal UI\nbubbletea" {class: box}
+  web: "Web server\nnet/http" {class: box}
+  bundle: "React + Milkdown\nembedded at build time" {class: box}
+  store: "internal/store\n\nthe only way to a note" {class: door}
+
+  web -> bundle: "serves" {class: wire}
+  tui -> store: {class: main}
+  web -> store: {class: main}
+}
+
+disk: "Your disk — no account, no cloud" {
+  class: group
+  direction: down
+
+  db: "nib.db\nSQLite, WAL" {class: box}
+  files: "attachments/\nnamed by content hash" {class: box}
+}
+
+binary.store -> disk.db: "notes" {class: main}
+binary.store -> disk.files: "files" {class: wire}
