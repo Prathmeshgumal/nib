@@ -208,3 +208,10 @@
 .nib-block-menu-item.danger {
   color: var(--destructive);
 }
+
+/* The note's title, time and status sit at the right-hand end of this bar, laid
+ * over it from NotePane. They are not children of it, so the space they need
+ * has to be kept clear here or the bar wraps its buttons underneath them. */
+.nib-editor .milkdown-top-bar {
+  padding-right: var(--nib-meta, 0);
+}
