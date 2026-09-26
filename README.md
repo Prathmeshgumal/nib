@@ -688,7 +688,7 @@ The interesting constraint in a terminal app is **the gap between a keystroke an
 screen changing**. You notice 100 ms. You do not notice 1 ms. Everything else is
 downstream of that.
 
-Go compiles to a single self-contained binary with no runtime to boot, and its garbage collector
+Go compiles to a single static binary with no runtime to boot, and its garbage collector
 is tuned for short pauses rather than peak throughput — which is exactly the trade a UI
 wants. The practical effect is that startup is dominated by real work instead of by
 loading an interpreter.
@@ -723,7 +723,7 @@ Measured on an Intel i5-13450HX running Ubuntu, with a **1,000-note** database.
 
 | | |
 | --- | --- |
-| Binary | **21.6 MB**, stripped |
+| Binary | **21.5 MB**, static, stripped |
 | Ready with 1,000 notes | **18.7 ms** median (18–20 ms) |
 | Memory, terminal UI | **28 MB** resident |
 | Memory, web server | **24.6 MB** idle, 28.5 MB under load |
