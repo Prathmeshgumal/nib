@@ -33,9 +33,15 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
 
     // A dropped or pasted file goes to nib's own attachment store and comes
     // back as the relative link the terminal already understands.
+    //
+    // `stored`, not `name`: the store keeps a file under a hash of its
+    // contents plus the extension it settled on, while `name` is what the file
+    // was called on the way in and exists to be link text. Building the URL
+    // out of `name` points at a file that was never written, which is an image
+    // that loads as a broken box.
     const onUpload = async (file) => {
-      const { name } = await uploadAttachment(file);
-      return `attachments/${name}`;
+      const { stored } = await uploadAttachment(file);
+      return `attachments/${stored}`;
     };
 
     crepe = createEditor(root, { markdown: note.content ?? '', onUpload });
