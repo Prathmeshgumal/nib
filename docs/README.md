@@ -30,3 +30,26 @@ leaves rows of the previous screen underneath it.
 
 SVG rather than PNG so the text stays crisp at any size, the file is a few
 kilobytes, and a diff is readable.
+
+## The diagrams
+
+`architecture.d2` and `dataflow.d2` are [D2](https://d2lang.com) source; the SVGs
+beside them are generated and committed so the README renders on GitHub without
+a build step.
+
+```bash
+d2 docs/architecture.d2 docs/architecture.svg
+d2 docs/dataflow.d2     docs/dataflow.svg
+```
+
+Each board sets its own light `style.fill` rather than going transparent. A
+README is read on GitHub in both themes, and d2's dark theme only remaps its own
+palette classes — not the explicit colours in these files — so a transparent
+board would render dark text on a dark page for half the readers.
+
+## The web screenshot
+
+`screenshot-web.png` and `screenshot-web-dark.png` are real screens of the
+browser UI, taken at 1440×900 against a throwaway database of demo notes — never
+against real ones, since the file is published. PNG rather than SVG here because
+a browser screenshot is a raster image; the terminal shots above stay SVG.

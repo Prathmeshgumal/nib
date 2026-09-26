@@ -26,8 +26,17 @@ nothing running in the background.
 The note gets the screen. The right-hand column carries three facts about what you are
 reading and the list of everything else.
 
-Press `W` and the same notes open in a browser with a formatting toolbar and live
-preview. Both stay open at once, backed by the same file.
+Press `W` and the same notes open in a browser as a block editor — drag a paragraph by
+its handle, hit `/` for a table, and the Markdown on disk never changes shape. Both stay
+open at once, backed by the same file.
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-web-dark.png">
+    <img src="docs/screenshot-web.png" width="880"
+         alt="nib in a browser: a note with a task list, a table, a quote and a code block, with the block handle showing beside a heading">
+  </picture>
+</div>
 
 ---
 
@@ -56,6 +65,15 @@ a text box, and want an account before you can write anything down.
 thousand notes and is ready in under 20 ms — less than Node takes to start an empty
 script — holds about 28 MB of memory while you write, and leaves nothing running when
 you quit.
+
+Neither view owns a copy of anything. Both go through one package, so a note written in
+the terminal is not *synced* to the browser — there is nothing to sync, because there is
+only ever one row.
+
+<div align="center">
+  <img src="docs/architecture.svg" width="880"
+       alt="The nib binary contains the terminal UI, the web server and the embedded React bundle; all of them reach notes only through internal/store, which owns the SQLite file and the attachments directory on your disk">
+</div>
 
 ---
 
@@ -449,6 +467,17 @@ italic, strikethrough, inline code and link. The usual shortcuts work as you wou
 expect: `Ctrl+B`, `Ctrl+I`, `Ctrl+K`, and Markdown itself is a shortcut — `# ` at the
 start of a line makes a heading, `- ` a bullet, `- [ ] ` a task, ``` a code block.
 
+**Every block has a handle.** Point at a paragraph, a heading, a list or a table and two
+controls appear in the left margin: `+` inserts a block under it, and the six dots do the
+rest. Drag the dots and the block moves, with a blue line showing where it will land.
+Click them and a menu opens with **Duplicate** and **Delete** — which is how you get rid
+of a block without selecting it by hand.
+
+**The toolbar stays at the top** as you scroll, so the block-type picker, the lists, the
+link, the image and the table are in the same place on line four hundred as on line one.
+The note's title, the time it was last touched and its save state sit at the right-hand
+end of that same bar.
+
 **Lists carry on by themselves,** the same as [in the terminal](#lists-carry-on-by-themselves).
 `Shift+↵` puts a line break inside an item, `Tab` and `Shift+Tab` indent and outdent, and
 `Backspace` on an empty item clears the marker. Checkboxes are live — click one and it
@@ -466,6 +495,11 @@ note, so nothing is lost if you never press anything. `Ctrl+S` saves on demand. 
 steps out of the writing and saves what is there — it does not throw anything away,
 because on a surface with no edit mode there is no draft to discard. The badge by the
 title reads Editing, Saving… or Saved so you can always tell which.
+
+<div align="center">
+  <img src="docs/dataflow.svg" width="880"
+       alt="Typing in the browser updates the Milkdown document, which is serialized to Markdown on every change; a save is triggered about a second after you stop typing, when you leave the note, or when you press Escape or Ctrl+S, and writes one row of nib.db that the terminal reads">
+</div>
 
 There's a search box, a light/dark toggle that follows your system by default, and
 deleting asks for confirmation.
@@ -654,7 +688,7 @@ The interesting constraint in a terminal app is **the gap between a keystroke an
 screen changing**. You notice 100 ms. You do not notice 1 ms. Everything else is
 downstream of that.
 
-Go compiles to a single static binary with no runtime to boot, and its garbage collector
+Go compiles to a single self-contained binary with no runtime to boot, and its garbage collector
 is tuned for short pauses rather than peak throughput — which is exactly the trade a UI
 wants. The practical effect is that startup is dominated by real work instead of by
 loading an interpreter.
@@ -689,7 +723,7 @@ Measured on an Intel i5-13450HX running Ubuntu, with a **1,000-note** database.
 
 | | |
 | --- | --- |
-| Binary | **19.8 MB**, static, stripped |
+| Binary | **21.6 MB**, stripped |
 | Ready with 1,000 notes | **18.7 ms** median (18–20 ms) |
 | Memory, terminal UI | **28 MB** resident |
 | Memory, web server | **24.6 MB** idle, 28.5 MB under load |
