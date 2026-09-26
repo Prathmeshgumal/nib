@@ -516,7 +516,7 @@
         <div class="cell"><h4>Copy</h4><p><kbd>R</kbd> shows the raw Markdown with no borders, and hands the mouse back, so a selection is the text and nothing else.</p></div>
         <div class="cell"><h4>Links</h4><p>The preview shows the link text, not the URL. Press <kbd>o</kbd> to open one — or pick from a list when the note holds several.</p></div>
         <div class="cell"><h4>Your editor</h4><p><kbd>e</kbd> opens the note straight in <code class="i">$EDITOR</code>; <kbd>ctrl+e</kbd> does it mid-edit.</p></div>
-        <div class="cell"><h4>Browser</h4><p><kbd>W</kbd> opens the same notes in a React UI, served from inside the binary, bound to localhost.</p></div>
+        <div class="cell"><h4>Browser</h4><p><kbd>W</kbd> opens the same notes as a block editor — drag to reorder, <kbd>/</kbd> to insert — served from inside the binary, bound to localhost.</p></div>
       </div>
     </div>
   </section>
@@ -731,8 +731,8 @@
         </div>
         <div class="stat">
           <div class="k">Binary</div>
-          <div class="v"><span data-count="19.8" data-dp="1">0</span><small>MB</small></div>
-          <div class="d">Static and stripped. No runtime, no system libraries.</div>
+          <div class="v"><span data-count="21.6" data-dp="1">0</span><small>MB</small></div>
+          <div class="d">Stripped, with no runtime to install and nothing to compile.</div>
         </div>
         <div class="stat">
           <div class="k">Memory, terminal UI</div>
@@ -847,6 +847,16 @@
             is still the Markdown the terminal reads.
           </p>
           <p class="body">
+            <strong>Every block has a handle.</strong> Point at a paragraph, a
+            heading or a table and two controls appear in the margin:
+            <code class="i">+</code> inserts a block under it, and the six dots
+            do the rest. Drag them and the block moves, with a line showing
+            where it lands; click them for <strong>Duplicate</strong> and
+            <strong>Delete</strong>. The toolbar stays at the top as you
+            scroll, so the controls are in the same place on line four hundred
+            as on line one.
+          </p>
+          <p class="body">
             <strong>It is the same file, open twice.</strong> Write in one, press
             <code class="i">r</code> in the other and it is there. The page is
             served from inside the binary, so there is nothing to install and
@@ -868,6 +878,7 @@
           <div class="tags" style="margin-top:22px;margin-bottom:0">
             <span class="tag b">[ LOCALHOST ONLY ]</span>
             <span class="tag">[ NO EDIT MODE ]</span>
+            <span class="tag">[ DRAG BLOCKS TO REORDER ]</span>
             <span class="tag">[ MEDIA PLAYS IN THE NOTE ]</span>
             <span class="tag">[ REACT + TAILWIND ]</span>
             <span class="tag">[ EMBEDDED IN THE BINARY ]</span>
