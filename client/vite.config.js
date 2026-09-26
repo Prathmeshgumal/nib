@@ -14,6 +14,12 @@ export default defineConfig({
         import.meta.dirname,
         './src/lib/milkdown/stubs/languageData.js',
       ),
+      // More specific first: a bare `katex` alias would otherwise rewrite
+      // this path into stubs/katex.js/dist/katex.min.css.
+      'katex/dist/katex.min.css': path.resolve(
+        import.meta.dirname,
+        './src/lib/milkdown/stubs/katex.css',
+      ),
       katex: path.resolve(import.meta.dirname, './src/lib/milkdown/stubs/katex.js'),
     },
   },

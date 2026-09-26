@@ -1,0 +1,132 @@
+/* Crepe ships its structure and its palette separately: the theme files under
+ * `theme/<name>/` are nothing but a block of custom properties, and every rule
+ * that positions a toolbar, sizes an icon or lays out a table lives in
+ * `theme/common/`. Importing common is not optional - without it the slash
+ * menu, the code block's language picker and the table controls render as bare
+ * unstyled elements, which is what a missing stylesheet looks like.
+ *
+ * We take the structure and supply the palette ourselves, mapped onto the
+ * tokens the rest of nib already uses. That is what makes the editor follow the
+ * light/dark toggle instead of carrying a second, unrelated theme.
+ */
+@import '@milkdown/crepe/theme/common/style.css';
+
+.milkdown {
+  /* The writing surface and the text on it. */
+  --crepe-color-background: var(--background);
+  --crepe-color-on-background: var(--foreground);
+
+  /* Menus, tooltips and the slash menu - anything that floats above the note. */
+  --crepe-color-surface: var(--popover);
+  --crepe-color-surface-low: var(--muted);
+  --crepe-color-on-surface: var(--popover-foreground);
+  --crepe-color-on-surface-variant: var(--muted-foreground);
+
+  --crepe-color-outline: var(--border);
+  --crepe-color-primary: var(--primary);
+  --crepe-color-secondary: var(--secondary);
+  --crepe-color-on-secondary: var(--secondary-foreground);
+
+  /* Used for the badge over an image, so it has to read against the note. */
+  --crepe-color-inverse: var(--foreground);
+  --crepe-color-on-inverse: var(--background);
+
+  /* Notion-ish: a red that reads as a different kind of text, not as an error.
+   * The destructive token on its own is the red of a delete button. */
+  --crepe-color-inline-code: color-mix(in oklch, var(--destructive) 70%, var(--foreground));
+  --crepe-color-error: var(--destructive);
+  --crepe-color-hover: var(--accent);
+  --crepe-color-selected: var(--accent);
+  --crepe-color-inline-area: var(--muted);
+
+  --crepe-base-font-size: 16px;
+  /* Crepe's own themes set a serif for headings. Notion and the rest of nib
+   * are sans throughout, and a serif heading over a sans paragraph would read
+   * as two different applications. */
+  --crepe-font-title: inherit;
+  --crepe-font-default: inherit;
+  --crepe-font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --crepe-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --crepe-shadow-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Crepe sizes headings for a document that opens on its own page. A note sits
+ * under a title bar that already says what it is, so the scale starts smaller
+ * and the space above each heading does the separating instead. */
+.milkdown .ProseMirror h1 { font-size: 1.875em; margin-top: 1.6rem; }
+.milkdown .ProseMirror h2 { font-size: 1.5em; margin-top: 1.4rem; }
+.milkdown .ProseMirror h3 { font-size: 1.25em; margin-top: 1.2rem; }
+.milkdown .ProseMirror h4 { font-size: 1.1em; margin-top: 1rem; }
+.milkdown .ProseMirror h5,
+.milkdown .ProseMirror h6 { font-size: 1em; margin-top: 1rem; }
+.milkdown .ProseMirror h1:first-child,
+.milkdown .ProseMirror h2:first-child,
+.milkdown .ProseMirror h3:first-child { margin-top: 0; }
+
+/* The editor fills the pane it is given and scrolls inside it, so the sidebar
+ * and the note's title stay put while the writing moves. */
+.nib-editor .milkdown {
+  height: 100%;
+}
+
+.nib-editor .milkdown .ProseMirror {
+  padding: 0 0 40vh;
+  min-height: 100%;
+}
+
+/* A line of prose is easier to read when it stops before the window does. It
+ * is capped rather than centred so the first character sits under the note's
+ * title, instead of drifting away from it as the window widens. */
+.nib-editor .milkdown .ProseMirror {
+  max-width: 46rem;
+}
+
+/* Crepe paints a code block in `surface`, the same colour as the menus that
+ * float above the note. On nib's palette that is the page itself, so the block
+ * had no edges at all. It gets its own tint and a border instead. */
+.milkdown .milkdown-code-block,
+.milkdown .milkdown-code-block .cm-editor,
+.milkdown .milkdown-code-block .cm-gutters {
+  background: var(--muted);
+}
+
+.milkdown .milkdown-code-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px 12px;
+}
+
+/* Without a grammar loaded there is no syntax colouring, so the code is one
+ * flat colour - and CodeMirror's default for that is too faint to read. */
+.milkdown .milkdown-code-block .cm-content {
+  color: var(--foreground);
+}
+
+/* CodeMirror marks the caret's line even when the editor is not focused,
+ * which reads as a stray highlight on a note you are only looking at. */
+.milkdown .milkdown-code-block .cm-activeLine,
+.milkdown .milkdown-code-block .cm-activeLineGutter {
+  background: transparent;
+}
+
+.milkdown .milkdown-code-block .cm-editor.cm-focused .cm-activeLine {
+  background: color-mix(in srgb, var(--accent), transparent 40%);
+}
+
+/* Bullets and numbers took the outline colour, which is the colour of a hairline
+ * border - too faint to mark an item. */
+.milkdown .milkdown-list-item-block li .label-wrapper,
+.milkdown .milkdown-list-item-block li .label-wrapper svg {
+  color: var(--muted-foreground);
+  fill: var(--muted-foreground);
+}
+
+/* Inline code sat as bare red text: the chip behind it is mixed from
+ * `inline-area`, and pointing that at nib's muted token left it invisible. */
+.milkdown .ProseMirror code:not(.cm-content code) {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  padding: 0.1em 0.3em;
+  font-size: 0.9em;
+}
