@@ -8,6 +8,10 @@
   /* The width of a note's column. The title, the status line and the writing
    * all share it, so they line up as one column down the middle of the pane. */
   --nib-column: 46rem;
+  /* The one colour in the editor that is nib's rather than the interface's.
+   * It marks where a dragged block will land, so it has to be the thing your
+   * eye goes to - a hairline grey cannot do that job. */
+  --nib-accent: oklch(0.51 0.21 265);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -48,6 +52,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 10%);
+  --nib-accent: oklch(0.72 0.16 260);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);
 }
