@@ -7,6 +7,7 @@ import { attachment } from './attachmentNode';
 import { imageResize } from './imageResize';
 import { emptyTaskPlugin } from './emptyTask';
 import { blockMenu } from './blockMenu';
+import { buildTopBar } from './topBar';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -105,7 +106,11 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       [Crepe.Feature.TopBar]: true,
       ...features,
     },
-    featureConfigs: onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {},
+    featureConfigs: {
+      ...(onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {}),
+      // Headings on the bar itself, not only behind the dropdown.
+      [Crepe.Feature.TopBar]: { buildTopBar },
+    },
   });
   crepe.editor
     .config((ctx) => {
