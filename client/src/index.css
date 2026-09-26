@@ -5,6 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* The width of a note's column. The title, the status line and the writing
+   * all share it, so they line up as one column down the middle of the pane. */
+  --nib-column: 46rem;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
