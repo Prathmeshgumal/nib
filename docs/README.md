@@ -66,7 +66,7 @@ produces — the two differed by 0.7 MB at v1.6.0. Read the figure off the
 published asset instead:
 
 ```bash
-gh release download v1.6.0 --dir /tmp/rel
+gh release download v1.7.0 --dir /tmp/rel
 cd /tmp/rel && sha256sum -c checksums.txt
 ls -l nib-linux-amd64
 ```

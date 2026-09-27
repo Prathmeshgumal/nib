@@ -61,7 +61,7 @@ Most note apps make you pick a side. Terminal tools are fast but ask you to give
 readable, formatted view. Desktop apps are comfortable but ship a browser engine to draw
 a text box, and want an account before you can write anything down.
 
-`nib` is one 20 MB binary that gives you both views of the same SQLite file. It opens a
+`nib` is one 21 MB binary that gives you both views of the same SQLite file. It opens a
 thousand notes and is ready in under 20 ms — less than Node takes to start an empty
 script — holds about 28 MB of memory while you write, and leaves nothing running when
 you quit.
