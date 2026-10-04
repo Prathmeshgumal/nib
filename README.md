@@ -5,7 +5,7 @@
 **A Markdown note taker that lives in your terminal — and in your browser, from the same binary.**
 
 Your notes are one SQLite file on your own disk. No account, no cloud, no sync service,
-nothing running in the background.
+nothing running in the background — unless you [choose to host your own copy](docs/hosting.md).
 
 [![CI](https://github.com/Prathmeshgumal/nib/actions/workflows/ci.yml/badge.svg)](https://github.com/Prathmeshgumal/nib/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go&logoColor=white)](https://go.dev)
@@ -44,7 +44,7 @@ open at once, backed by the same file.
 
 - [The idea](#the-idea)
 - [Install](#install) · [Platforms](#platforms)
-- [Starting it](#starting-it)
+- [Starting it](#starting-it) · [Syncing between machines](#syncing-between-machines)
 - [The terminal UI](#the-terminal-ui) — [moving](#moving-around) · [reading](#reading-a-long-note) · [aiming](#the-arrows-and-the-wheel-follow-your-last-click) · [copying](#copying-a-note) · [writing](#writing) · [lists](#lists-carry-on-by-themselves) · [search](#finding-notes) · [links](#links) · [images and files](#images-and-files) · [deleting](#deleting-and-undoing-it) · [the browser](#the-web-ui-from-the-terminal)
 - [The web UI](#the-web-ui) — [files in the browser](#files-in-the-browser)
 - [Writing notes](#writing-notes) — the Markdown it understands
@@ -166,6 +166,24 @@ you start when you want it. Both read and write the same SQLite file, and both c
 open at once.
 
 ---
+
+## Syncing between machines
+
+By default your notes never leave the machine. If you want the same notes from several
+machines, or a copy that outlives this one, you can run your own hosted server — the
+same binary, keeping notes in Postgres (Supabase's free tier works), behind a name and
+password on a free host like Render:
+
+```bash
+nib login https://your-nib.onrender.com   # once per machine
+nib                                       # syncs on start, every minute, and on quit
+```
+
+Each machine keeps its own SQLite file and keeps working offline; the server is the
+meeting point and the backup. Edits are reconciled by newest write, deletes and the
+trash travel with the notes, and pictures are copied across. The full walkthrough,
+including the free-tier caveats and how conflicts are settled, is in
+[docs/hosting.md](docs/hosting.md).
 
 ## The terminal UI
 

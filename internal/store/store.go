@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +25,64 @@ type Note struct {
 }
 
 type Store struct {
-	db     *sql.DB
-	Path   string
-	attach *attach.Store
+	db      *sql.DB
+	Path    string
+	attach  *attach.Store
+	blobs   attach.Backend
+	dialect dialect
+}
+
+// dialect is the flavour of SQL the connection speaks. The local file is
+// SQLite and the hosted copy is Postgres; the queries are the same apart from
+// how a parameter is spelled and what case-insensitive matching is called, so
+// one Store serves both rather than two copies of the trash and search rules
+// drifting apart.
+type dialect int
+
+const (
+	sqliteDialect dialect = iota
+	postgresDialect
+)
+
+// rebind rewrites the ? placeholders the queries are written with into the
+// $1, $2 form Postgres wants. None of the queries contain a literal question
+// mark, so a plain scan is enough.
+func (s *Store) rebind(q string) string {
+	if s.dialect != postgresDialect {
+		return q
+	}
+	var b strings.Builder
+	n := 0
+	for _, r := range q {
+		if r == '?' {
+			n++
+			b.WriteString("$" + strconv.Itoa(n))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func (s *Store) exec(q string, args ...any) (sql.Result, error) {
+	return s.db.Exec(s.rebind(q), args...)
+}
+
+func (s *Store) query(q string, args ...any) (*sql.Rows, error) {
+	return s.db.Query(s.rebind(q), args...)
+}
+
+func (s *Store) queryRow(q string, args ...any) *sql.Row {
+	return s.db.QueryRow(s.rebind(q), args...)
+}
+
+// like is the case-insensitive match operator. SQLite's LIKE already ignores
+// ASCII case; Postgres spells it ILIKE.
+func (s *Store) like() string {
+	if s.dialect == postgresDialect {
+		return "ILIKE"
+	}
+	return "LIKE"
 }
 
 var ErrNotFound = errors.New("note not found")
@@ -39,9 +95,22 @@ CREATE TABLE IF NOT EXISTS notes (
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   deleted_at  TEXT,
-  search_text TEXT NOT NULL DEFAULT ''
+  search_text TEXT NOT NULL DEFAULT '',
+  changed_at  TEXT NOT NULL DEFAULT '',
+  server_at   TEXT NOT NULL DEFAULT '',
+  dirty       INTEGER NOT NULL DEFAULT 1
 );
-CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (updated_at DESC);`
+CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (updated_at DESC);
+CREATE TABLE IF NOT EXISTS tombstones (
+  id        TEXT PRIMARY KEY,
+  purged_at TEXT NOT NULL,
+  server_at TEXT NOT NULL DEFAULT '',
+  dirty     INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);`
 
 // TrashRetention is how long a deleted note stays recoverable.
 const TrashRetention = 30 * 24 * time.Hour
@@ -77,6 +146,23 @@ func Open(path string) (*Store, error) {
 	} else if !strings.Contains(err.Error(), "duplicate column") {
 		return nil, fmt.Errorf("migrating schema: %w", err)
 	}
+	// Databases from before sync existed have no change clock. Each of the
+	// columns that carries one is added on its own, and every existing row
+	// starts dirty, so the first sync sends the whole library.
+	for _, col := range []string{
+		`changed_at TEXT NOT NULL DEFAULT ''`,
+		`server_at TEXT NOT NULL DEFAULT ''`,
+		`dirty INTEGER NOT NULL DEFAULT 1`,
+	} {
+		if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN ` + col); err != nil &&
+			!strings.Contains(err.Error(), "duplicate column") {
+			return nil, fmt.Errorf("migrating schema: %w", err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE notes SET changed_at = max(updated_at, COALESCE(deleted_at, ''))
+		WHERE changed_at = ''`); err != nil {
+		return nil, fmt.Errorf("migrating schema: %w", err)
+	}
 	// Attachments live beside the database rather than in a fixed place, so
 	// pointing --db somewhere else takes the files along and the relative
 	// links inside the notes keep resolving.
@@ -85,7 +171,7 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 
-	st := &Store{db: db, Path: path, attach: at}
+	st := &Store{db: db, Path: path, attach: at, blobs: at, dialect: sqliteDialect}
 	if err := st.purgeExpiredTrash(); err != nil {
 		return nil, err
 	}
@@ -98,8 +184,13 @@ func Open(path string) (*Store, error) {
 	return st, nil
 }
 
-// Attachments is the store for the files the notes refer to.
+// Attachments is the on-disk store for the files the notes refer to. It is nil
+// on a Postgres-backed Store, which keeps its files in the database; code that
+// has to work with either asks for Blobs instead.
 func (s *Store) Attachments() *attach.Store { return s.attach }
+
+// Blobs is wherever this Store keeps the files its notes refer to.
+func (s *Store) Blobs() attach.Backend { return s.blobs }
 
 // SweepAttachments reconciles the attachments directory against the notes.
 //
@@ -108,7 +199,10 @@ func (s *Store) Attachments() *attach.Store { return s.attach }
 // hands back broken images. Gathering the set here rather than in each caller
 // is what stops anyone forgetting that.
 func (s *Store) SweepAttachments() (trashed, restored int, err error) {
-	rows, err := s.db.Query(`SELECT content FROM notes`)
+	if s.attach == nil {
+		return 0, 0, nil // files in a database are not swept
+	}
+	rows, err := s.query(`SELECT content FROM notes`)
 	if err != nil {
 		return 0, 0, fmt.Errorf("reading note contents: %w", err)
 	}
@@ -134,6 +228,14 @@ func (s *Store) Close() error { return s.db.Close() }
 
 func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 
+// stamp is the fixed-width clock the sync columns use. RFC3339Nano drops
+// trailing zeros, so "…05Z" sorts after "…05.1Z" as text although it is the
+// earlier time; a column that is compared in SQL needs a format that sorts the
+// way time does.
+const stampLayout = "2006-01-02T15:04:05.000000Z"
+
+func stamp() string { return time.Now().UTC().Format(stampLayout) }
+
 func scan(rows *sql.Rows) ([]Note, error) {
 	defer rows.Close()
 	notes := []Note{}
@@ -148,22 +250,23 @@ func scan(rows *sql.Rows) ([]Note, error) {
 }
 
 // List returns notes newest-first, optionally filtered by a substring match on
-// the title or body. SQLite's LIKE is already case-insensitive for ASCII.
+// the title or body. The match ignores case.
 func (s *Store) List(query string) ([]Note, error) {
 	const cols = `SELECT id, title, content, created_at, updated_at FROM notes`
 	if q := strings.TrimSpace(query); q != "" {
 		like := likePattern(q)
+		op := s.like()
 		// search_text, not content: it is the same words with a serializer's
 		// backslashes taken out, so what the typist wrote is what matches.
-		rows, err := s.db.Query(cols+` WHERE deleted_at IS NULL
-			AND (title LIKE ? ESCAPE '\' OR search_text LIKE ? ESCAPE '\')
+		rows, err := s.query(cols+` WHERE deleted_at IS NULL
+			AND (title `+op+` ? ESCAPE '\' OR search_text `+op+` ? ESCAPE '\')
 			ORDER BY updated_at DESC`, like, like)
 		if err != nil {
 			return nil, err
 		}
 		return scan(rows)
 	}
-	rows, err := s.db.Query(cols + ` WHERE deleted_at IS NULL ORDER BY updated_at DESC`)
+	rows, err := s.query(cols + ` WHERE deleted_at IS NULL ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +275,7 @@ func (s *Store) List(query string) ([]Note, error) {
 
 func (s *Store) Get(id string) (Note, error) {
 	var n Note
-	err := s.db.QueryRow(
+	err := s.queryRow(
 		`SELECT id, title, content, created_at, updated_at FROM notes
 		 WHERE id = ? AND deleted_at IS NULL`, id,
 	).Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.UpdatedAt)
@@ -193,17 +296,18 @@ func (s *Store) Create(title, content string) (Note, error) {
 		CreatedAt: now(),
 		UpdatedAt: now(),
 	}
-	_, err := s.db.Exec(
-		`INSERT INTO notes (id, title, content, created_at, updated_at, search_text)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content))
+	_, err := s.exec(
+		`INSERT INTO notes (id, title, content, created_at, updated_at, search_text, changed_at, server_at, dirty)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content), stamp(), stamp())
 	return n, err
 }
 
 func (s *Store) Update(id, title, content string) (Note, error) {
-	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?
+	res, err := s.exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?,
+		changed_at = ?, server_at = ?, dirty = 1
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, Unescape(content)), content, now(), Unescape(content), id)
+		DeriveTitle(title, Unescape(content)), content, now(), Unescape(content), stamp(), stamp(), id)
 	if err != nil {
 		return Note{}, err
 	}
@@ -216,8 +320,8 @@ func (s *Store) Update(id, title, content string) (Note, error) {
 // Delete moves a note to the trash rather than destroying it. Trashed notes
 // stay recoverable for TrashRetention before being purged on the next open.
 func (s *Store) Delete(id string) error {
-	res, err := s.db.Exec(`UPDATE notes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`,
-		now(), id)
+	res, err := s.exec(`UPDATE notes SET deleted_at = ?, changed_at = ?, server_at = ?, dirty = 1
+		WHERE id = ? AND deleted_at IS NULL`, now(), stamp(), stamp(), id)
 	if err != nil {
 		return err
 	}
@@ -229,7 +333,8 @@ func (s *Store) Delete(id string) error {
 
 // Restore brings a trashed note back.
 func (s *Store) Restore(id string) error {
-	res, err := s.db.Exec(`UPDATE notes SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL`, id)
+	res, err := s.exec(`UPDATE notes SET deleted_at = NULL, changed_at = ?, server_at = ?, dirty = 1
+		WHERE id = ? AND deleted_at IS NOT NULL`, stamp(), stamp(), id)
 	if err != nil {
 		return err
 	}
@@ -241,7 +346,7 @@ func (s *Store) Restore(id string) error {
 
 // Trash lists what is currently recoverable, most recently deleted first.
 func (s *Store) Trash() ([]Note, error) {
-	rows, err := s.db.Query(`SELECT id, title, content, created_at, updated_at FROM notes
+	rows, err := s.query(`SELECT id, title, content, created_at, updated_at FROM notes
 		WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`)
 	if err != nil {
 		return nil, err
@@ -252,11 +357,11 @@ func (s *Store) Trash() ([]Note, error) {
 // Purge permanently removes a single trashed note. This cannot be undone, so
 // it refuses to touch a note that is still live.
 func (s *Store) Purge(id string) error {
-	res, err := s.db.Exec(`DELETE FROM notes WHERE id = ? AND deleted_at IS NOT NULL`, id)
+	n, err := s.purgeWhere(`id = ? AND deleted_at IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
+	if n == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -265,23 +370,44 @@ func (s *Store) Purge(id string) error {
 // EmptyTrash permanently removes every trashed note and reports how many went.
 // Live notes are untouched.
 func (s *Store) EmptyTrash() (int, error) {
-	res, err := s.db.Exec(`DELETE FROM notes WHERE deleted_at IS NOT NULL`)
-	if err != nil {
-		return 0, err
-	}
-	n, _ := res.RowsAffected()
-	return int(n), nil
+	return s.purgeWhere(`deleted_at IS NOT NULL`)
 }
 
 func (s *Store) purgeExpiredTrash() error {
 	cutoff := time.Now().UTC().Add(-TrashRetention).Format(time.RFC3339Nano)
-	_, err := s.db.Exec(`DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
+	_, err := s.purgeWhere(`deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
 	return err
+}
+
+// purgeWhere deletes the notes the condition picks out and leaves a tombstone
+// for each, in one transaction. Without the tombstone, sync could not tell a
+// note that was destroyed here from one that simply has not arrived yet, and
+// the next copy to reach another machine would bring it back.
+func (s *Store) purgeWhere(cond string, args ...any) (int, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	at, srv := stamp(), stamp()
+	if _, err := tx.Exec(s.rebind(`INSERT INTO tombstones (id, purged_at, server_at, dirty)
+		SELECT id, '`+at+`', '`+srv+`', 1 FROM notes WHERE `+cond+`
+		ON CONFLICT (id) DO UPDATE SET purged_at = excluded.purged_at,
+			server_at = excluded.server_at, dirty = 1`), args...); err != nil {
+		return 0, err
+	}
+	res, err := tx.Exec(s.rebind(`DELETE FROM notes WHERE `+cond), args...)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), tx.Commit()
 }
 
 func (s *Store) Count() (int, error) {
 	var n int
-	err := s.db.QueryRow(`SELECT count(*) FROM notes WHERE deleted_at IS NULL`).Scan(&n)
+	err := s.queryRow(`SELECT count(*) FROM notes WHERE deleted_at IS NULL`).Scan(&n)
 	return n, err
 }
 

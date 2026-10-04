@@ -23,7 +23,7 @@ func (s *Server) handleAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	base := strings.TrimPrefix(r.URL.Path, "/attachments/")
-	f, err := s.store.Attachments().Read(base)
+	f, modTime, err := s.store.Blobs().Open(base)
 	if err != nil {
 		// A refused name and a missing file get the same answer: nobody
 		// should be able to tell a malformed request from a real absence.
@@ -36,17 +36,11 @@ func (s *Server) handleAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	info, err := f.Stat()
-	if err != nil {
-		serverError(w, err)
-		return
-	}
-
 	// The name is the hash of the contents, so these bytes can never come to
 	// mean anything else. ServeContent adds the content type, the ETag and
 	// range handling from the name and the file itself.
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	http.ServeContent(w, r, base, info.ModTime(), f)
+	http.ServeContent(w, r, base, modTime, f)
 }
 
 // handleUpload stores one file and answers with the markdown line for it.
@@ -73,7 +67,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ref, err := s.store.Attachments().Add(header.Filename, file)
+	ref, err := s.store.Blobs().Add(header.Filename, file)
 	if errors.Is(err, attach.ErrTooLarge) {
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
 			"error": "that file is larger than 50 MB",

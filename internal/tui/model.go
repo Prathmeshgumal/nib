@@ -114,6 +114,11 @@ type trashLoadedMsg struct {
 
 type statusMsg string
 
+// SyncedMsg tells the interface a background sync finished, so it re-reads the
+// list: notes written on another device have arrived underneath it. Text is a
+// short line to flash in the footer, or empty to stay quiet.
+type SyncedMsg struct{ Text string }
+
 type clearStatusMsg struct{}
 
 func New(st *store.Store) model {

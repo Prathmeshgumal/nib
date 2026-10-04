@@ -21,26 +21,46 @@ var assets embed.FS
 
 type Server struct {
 	store *store.Store
+	auth  *Auth
 	URL   string
 	srv   *http.Server
 	ln    net.Listener
 }
 
 // New binds a listener immediately so the caller knows the real URL (and any
-// port conflict) before anything is served.
+// port conflict) before anything is served. It listens on the loopback
+// interface only and asks nobody for a password: it is for the person sitting
+// at this machine.
 func New(s *store.Store, port int) (*Server, error) {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	return listen(s, fmt.Sprintf("127.0.0.1:%d", port), nil)
+}
+
+// NewHosted is the same server put on the network behind a password, for the
+// hosted copy that every device syncs with. addr is a full host:port; a hosted
+// platform hands the port over in the environment and expects every interface.
+func NewHosted(s *store.Store, addr string, auth *Auth) (*Server, error) {
+	if auth == nil {
+		return nil, errors.New("a hosted server needs a password")
+	}
+	return listen(s, addr, auth)
+}
+
+func listen(s *store.Store, addr string, auth *Auth) (*Server, error) {
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("port %d is not available: %w", port, err)
+		return nil, fmt.Errorf("%s is not available: %w", addr, err)
 	}
-	srv := &Server{
-		store: s,
-		ln:    ln,
-		URL:   fmt.Sprintf("http://localhost:%d", ln.Addr().(*net.TCPAddr).Port),
-	}
+	url := "http://localhost:" + fmt.Sprint(ln.Addr().(*net.TCPAddr).Port)
+	srv := &Server{store: s, auth: auth, ln: ln, URL: url}
 	srv.srv = &http.Server{
 		Handler:           srv.routes(),
 		ReadHeaderTimeout: 10 * time.Second,
+		// A hosted server meets the open internet. These bound how long one
+		// slow connection can hold a goroutine; uploads of 50 MB on a slow
+		// line are the reason the write limit is not tighter.
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
 	}
 	return srv, nil
 }
@@ -51,9 +71,14 @@ func (s *Server) Stop() error { return s.srv.Close() }
 
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
+	// Health is open even on a hosted server, because the platform's checker
+	// has no password. It says nothing about the notes.
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "store": "sqlite"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
+	mux.HandleFunc("/api/sync", s.handleSync)
+	mux.HandleFunc("/api/sync/attachments", s.handleSyncAttachments)
+	mux.HandleFunc("/api/sync/attachments/", s.handleSyncAttachment)
 	mux.HandleFunc("/api/notes", s.handleCollection)
 	mux.HandleFunc("/api/notes/", s.handleItem)
 	mux.HandleFunc("/api/trash", s.handleTrash)
@@ -61,7 +86,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/attachments", s.handleUpload)
 	mux.HandleFunc("/attachments/", s.handleAttachment)
 	mux.Handle("/", s.staticHandler())
-	return mux
+	if s.auth == nil {
+		return mux
+	}
+	return s.auth.Wrap(mux, "/api/health")
 }
 
 // handleTrash lists what is recoverable, or empties the trash outright.

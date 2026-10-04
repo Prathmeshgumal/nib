@@ -103,6 +103,12 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case SyncedMsg:
+		if msg.Text == "" {
+			return m, m.reload()
+		}
+		return m, tea.Batch(m.reload(), flash(msg.Text))
+
 	case statusMsg:
 		m.status = string(msg)
 		return m, nil

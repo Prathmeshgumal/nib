@@ -8,6 +8,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A real Postgres, so the hosted store is tested as it will run rather than
+    # assumed to behave like SQLite.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: nib
+          POSTGRES_DB: nibtest
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NIB_TEST_POSTGRES: postgres://postgres:nib@localhost:5432/nibtest?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 

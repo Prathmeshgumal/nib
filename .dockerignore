@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+client/node_modules
+client/dist
+nib
+*.db
+*.db-wal
+*.db-shm
+docs
+site

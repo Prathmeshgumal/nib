@@ -1,0 +1,20 @@
+# Render Blueprint for the hosted nib server. The notes live in Supabase
+# Postgres, so the free web service's disk being wiped on every restart does
+# not matter. See docs/hosting.md.
+services:
+  - type: web
+    name: nib
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # The Supabase connection string. Paste it in the dashboard; it is a
+      # secret and does not belong in this file.
+      - key: DATABASE_URL
+        sync: false
+      - key: NIB_USER
+        sync: false
+      # At least 12 characters. This is all that stands between the internet
+      # and your notes.
+      - key: NIB_PASSWORD
+        sync: false
