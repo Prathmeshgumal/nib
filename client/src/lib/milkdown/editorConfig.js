@@ -110,6 +110,8 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       ...(onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {}),
       // Headings on the bar itself, not only behind the dropdown.
       [Crepe.Feature.TopBar]: { buildTopBar },
+      // Crepe's own is "Please enter...", which reads like a form field.
+      [Crepe.Feature.Placeholder]: { text: 'Start writing, or type / for blocks' },
     },
   });
   crepe.editor

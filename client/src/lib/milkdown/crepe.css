@@ -12,8 +12,9 @@
 @import '@milkdown/crepe/theme/common/style.css';
 
 .milkdown {
-  /* The writing surface and the text on it. */
-  --crepe-color-background: var(--background);
+  /* The writing surface and the text on it. The card, not the page: in dark
+   * mode the two differ, and the page colour drew a darker box inside the note. */
+  --crepe-color-background: var(--card);
   --crepe-color-on-background: var(--foreground);
 
   /* Menus, tooltips and the slash menu - anything that floats above the note. */
@@ -91,8 +92,41 @@
  * the left of the block it belongs to, and floating-ui flips it to the right
  * when there is no room. Against the edge of the pane there was none. */
 .nib-editor .milkdown .ProseMirror {
-  max-width: var(--nib-column);
+  max-width: calc(var(--nib-column) + 2 * var(--nib-gutter));
   margin-inline: auto;
+  /* Room for the drag handle and the plus, so they sit beside the block
+   * instead of on top of the text, and so the text never touches the edge. */
+  padding-inline: var(--nib-gutter);
+  /* The plus and the dots together reach about 82px left of the text. Any
+   * less and the editor's own scroll box clipped the plus off its edge. */
+  --nib-gutter: 5.25rem;
+}
+
+/* Crepe spaces the bar's buttons 12px apart and its dividers 20px. Tighter,
+ * every group fits on one row at a 1280px window, instead of the headings
+ * dropping to a second row on their own. */
+.nib-editor .milkdown .milkdown-top-bar .top-bar-item {
+  margin: 6px 3px;
+}
+.nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
+  margin: 10px 6px;
+}
+
+@media (max-width: 640px) {
+  .nib-editor .milkdown .ProseMirror {
+    --nib-gutter: 0.75rem;
+  }
+  /* A phone fits five or six of these to a row; Crepe's spacing made the bar
+   * four rows deep, which left almost no room for the note itself. */
+  .nib-editor .milkdown .milkdown-top-bar {
+    padding: 0 4px;
+  }
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-item {
+    margin: 2px;
+  }
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
+    margin: 10px 4px;
+  }
 }
 
 /* Crepe paints a code block in `surface`, the same colour as the menus that
@@ -238,7 +272,8 @@
 }
 
 .nib-block-menu-item:hover,
-.nib-block-menu-item:focus-visible {
+.nib-block-menu-item:focus {
+  outline: none;
   background: var(--accent);
 }
 
@@ -249,11 +284,4 @@
 .nib-block-menu-item.danger,
 .nib-block-menu-item.danger .nib-block-menu-icon {
   color: var(--destructive);
-}
-
-/* The note's title, time and status sit at the right-hand end of this bar, laid
- * over it from NotePane. They are not children of it, so the space they need
- * has to be kept clear here or the bar wraps its buttons underneath them. */
-.nib-editor .milkdown-top-bar {
-  padding-right: var(--nib-meta, 0);
 }

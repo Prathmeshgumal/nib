@@ -85,3 +85,36 @@ describe('inserting below', () => {
     expect(out).toMatch(/^-{3,}$/m);
   });
 });
+
+// "Turn into" replaces what kind of block it is. Setting the type of the
+// paragraph inside a quote or a list item left the quote or the list around it,
+// so turning a quote into text did nothing you could see.
+describe('turning a wrapped block into something else unwraps it', () => {
+  it('Text takes a quote back to a plain paragraph', async () => {
+    const e = await open('> a quote\n');
+    e.cursorOn('a quote');
+    e.run('Text');
+    expect(e.markdown().trim()).toBe('a quote');
+  });
+
+  it('Heading 1 takes a list item out of its list', async () => {
+    const e = await open('- an item\n');
+    e.cursorOn('an item');
+    e.run('Heading 1');
+    expect(e.markdown().trim()).toBe('# an item');
+  });
+
+  it('Quote on a list item makes a quote, not a list inside a quote', async () => {
+    const e = await open('- an item\n');
+    e.cursorOn('an item');
+    e.run('Quote');
+    expect(e.markdown().trim()).toBe('> an item');
+  });
+
+  it('Quote on a quote does not nest a second one', async () => {
+    const e = await open('> a quote\n');
+    e.cursorOn('a quote');
+    e.run('Quote');
+    expect(e.markdown().trim()).toBe('> a quote');
+  });
+});

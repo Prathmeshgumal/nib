@@ -1,4 +1,4 @@
-import { FileText, NotebookPen, Plus, Search, Trash2, Undo2 } from 'lucide-react';
+import { FileText, NotebookPen, Plus, Search, Trash2, Undo2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -6,14 +6,16 @@ import { Separator } from '@/components/ui/separator';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
-import { relativeTime } from '@/lib/time';
+import { relativeTime, useMinuteTick } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
-function excerpt(content) {
+// The first line of the note worth previewing. A note usually opens with its
+// title as a heading, and showing that again under the title says nothing.
+function excerpt(content, title) {
   const line = (content || '')
     .split('\n')
     .map((l) => l.replace(/^[#>\-*\d.\s`]+/, '').trim())
-    .find(Boolean);
+    .find((l) => l && l !== (title || '').trim());
   return line ? line.slice(0, 90) : 'Empty note';
 }
 
@@ -28,9 +30,16 @@ export default function NoteList({
   onOpenTrash,
   canUndo,
   onUndo,
+  className,
 }) {
+  useMinuteTick();
   return (
-    <aside className="bg-muted flex w-full shrink-0 flex-col border-r md:w-80">
+    <aside
+      className={cn(
+        'bg-muted flex min-h-0 w-full flex-1 flex-col border-r md:w-80 md:flex-none md:shrink-0',
+        className
+      )}
+    >
       <div className="flex items-center justify-between gap-2 px-4 py-3.5">
         <div className="flex items-center gap-2">
           <NotebookPen className="size-5" />
@@ -49,14 +58,25 @@ export default function NoteList({
           <Input
             value={query}
             placeholder="Search notes…"
-            className="bg-background pl-8"
+            aria-label="Search notes"
+            className="bg-background pr-8 pl-8"
             onChange={(e) => onQuery(e.target.value)}
           />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => onQuery('')}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm outline-none focus-visible:ring-[3px]"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-3 pb-3">
-        {notes.length === 0 ? (
+        {notes === null ? null : notes.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center text-sm">
             <FileText className="size-8 opacity-40" />
             {query ? 'No notes match that search.' : 'No notes yet.'}
@@ -72,9 +92,9 @@ export default function NoteList({
                     note.id === selectedId && 'bg-background border-border shadow-xs'
                   )}
                 >
-                  <div className="truncate text-sm font-medium">{note.title}</div>
+                  <div className="truncate text-sm font-medium">{note.title || 'Untitled'}</div>
                   <div className="text-muted-foreground mt-0.5 truncate text-xs">
-                    {excerpt(note.content)}
+                    {excerpt(note.content, note.title)}
                   </div>
                   <div className="text-muted-foreground/80 mt-1.5 text-[11px]">
                     {relativeTime(note.updated_at)}
@@ -89,7 +109,10 @@ export default function NoteList({
       <Separator />
       <div className="flex items-center justify-between gap-2 px-3 py-2">
         <span className="text-muted-foreground pl-1 text-xs">
-          {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+          {notes !== null &&
+            (query
+              ? `${notes.length} ${notes.length === 1 ? 'match' : 'matches'}`
+              : `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`)}
         </span>
         <div className="flex items-center gap-1">
           {canUndo && (

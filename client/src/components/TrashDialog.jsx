@@ -46,7 +46,7 @@ export function TrashDialog({ open, onOpenChange, trash, onRestore, onPurge, onE
                   className="hover:bg-accent flex items-center gap-3 rounded-lg px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{note.title}</div>
+                    <div className="truncate text-sm font-medium">{note.title || 'Untitled'}</div>
                     <div className="text-muted-foreground text-xs">
                       Last edited {relativeTime(note.updated_at)}
                     </div>
@@ -76,7 +76,7 @@ export function TrashDialog({ open, onOpenChange, trash, onRestore, onPurge, onE
         {trash.length > 0 && (
           <>
             <Separator />
-            <DialogFooter className="sm:justify-between">
+            <DialogFooter className="flex-row items-center justify-between sm:justify-between">
               <Badge variant="secondary" className="text-muted-foreground">
                 {trash.length} {trash.length === 1 ? 'note' : 'notes'}
               </Badge>

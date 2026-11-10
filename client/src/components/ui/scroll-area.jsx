@@ -4,7 +4,11 @@ import { cn } from '@/lib/utils';
 
 const ScrollArea = React.forwardRef(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root ref={ref} className={cn('relative', className)} {...props}>
-    <ScrollAreaPrimitive.Viewport className="focus-visible:ring-ring/50 size-full rounded-[inherit] outline-none focus-visible:ring-[3px]">
+    {/* Radix wraps the children in a `display: table` div, which grows to fit
+        its widest line. That stops `truncate` from ever kicking in and lets the
+        list scroll sideways when a long title is focused. Making it a block
+        keeps it the width of the viewport. */}
+    <ScrollAreaPrimitive.Viewport className="focus-visible:ring-ring/50 size-full rounded-[inherit] outline-none focus-visible:ring-[3px] [&>div]:block!">
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollAreaPrimitive.ScrollAreaScrollbar
