@@ -12,7 +12,9 @@ async function mount(markdown) {
 beforeEach(() => localStorage.clear());
 
 describe('images can be resized, the way they could before', () => {
-  it('an attachment image gets a grip', async () => {
+  // Only an opened image can be resized; a collapsed one is a chip.
+  it('an opened attachment image gets a grip', async () => {
+    localStorage.setItem('nib.expanded.a1b2c3d4e5f60718.png', '1');
     const root = await mount('![diagram](attachments/a1b2c3d4e5f60718.png)\n');
     expect(root.querySelector('.nib-grip')).not.toBeNull();
   });
@@ -23,7 +25,8 @@ describe('images can be resized, the way they could before', () => {
     expect(root.querySelector('.nib-grip')).toBeNull();
   });
 
-  it('an inline attachment image gets one too', async () => {
+  it('an opened inline attachment image gets one too', async () => {
+    localStorage.setItem('nib.expanded.1111111111111111.png', '1');
     const root = await mount('Inline ![x](attachments/1111111111111111.png) here.\n');
     expect(root.querySelector('.nib-grip')).not.toBeNull();
   });

@@ -2,6 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { sizeFor } from '@/lib/mediaSize';
+import { isExpanded } from '@/lib/expandedImages';
 import { storedName } from '@/lib/attachments';
 import { makeGrip } from './resize';
 
@@ -45,6 +46,10 @@ export const imageResize = $prose(
             if (width !== null) attrs.style = `width:${width}px`;
 
             found.push(Decoration.node(pos, pos + node.nodeSize, attrs));
+            // A collapsed image is a chip with nothing to resize. Its grip,
+            // hidden, was also what the editor measured the cursor against
+            // when the image ended a line, so the cursor vanished there.
+            if (!isExpanded(name)) return;
             found.push(
               Decoration.widget(pos + node.nodeSize, () => makeGrip(name, media), { side: 1 }),
             );

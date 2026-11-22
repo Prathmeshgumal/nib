@@ -717,6 +717,21 @@
 .milkdown .nib-image-collapsed + .nib-grip {
   display: none !important;
 }
+/* An inline image stays laid out, at no width and a line's height. Removed
+ * from the page, it left the cursor nowhere to stand when the image was the
+ * last thing on its line: the editor draws its own cursor from where the
+ * text around it is, and found nothing, so after a pasted image the cursor
+ * vanished until a space was typed. */
+.milkdown .milkdown-image-inline.nib-image-collapsed {
+  display: inline-block !important;
+  width: 0 !important;
+  height: 1em;
+  overflow: hidden;
+  vertical-align: text-bottom;
+}
+.milkdown .milkdown-image-inline.nib-image-collapsed > * {
+  display: none !important;
+}
 .milkdown .nib-image-chip {
   display: inline-flex;
   align-items: center;

@@ -111,4 +111,11 @@ describe('an image is a chip until opened', () => {
     press(root.querySelector('.nib-image-collapse'));
     expect(document.activeElement).toBe(view.dom);
   });
+
+  it('draws no resize grip for a collapsed image, so the cursor after it has somewhere to stand', async () => {
+    await open('See ![](attachments/0123456789abcdef.png)\n');
+    expect(root.querySelectorAll('.nib-grip').length).toBe(0);
+    press(root.querySelector('.nib-image-chip'));
+    expect(root.querySelectorAll('.nib-grip').length).toBe(1);
+  });
 });
