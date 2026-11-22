@@ -24,7 +24,8 @@ const plainLine = (line) =>
 // shows, while you are still typing, what the list will call the note.
 // An image in the first line is called what a copy calls it - "(image 1)" -
 // rather than shown as its markdown. Mirrors titleImage in internal/store.
-const TITLE_IMAGE = /!\[[^\]]*\]\([^)\s]*(?:\s+"[^"]*")?\)/g;
+// Alt text may hold brackets, escaped or (once unescaped) matched pairs.
+const TITLE_IMAGE = /!\[(?:\\.|\[[^\]]*\]|[^\]\\[])*\]\([^)\s]*(?:\s+"[^"]*")?\)/g;
 const nameImages = (line) => {
   let n = 0;
   return line.replace(TITLE_IMAGE, () => `(image ${++n})`);

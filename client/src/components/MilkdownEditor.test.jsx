@@ -227,7 +227,7 @@ describe('copying the whole note', () => {
     });
     expect(await m.crepe.copyNote()).toBe(true);
     expect(writeText).toHaveBeenCalledWith(
-      'Fix (image 1) /data/attachments/0123456789abcdef.png and (image 2) /data/attachments/fedcba9876543210.jpg',
+      'Fix (image 1) and (image 2)\n\n/data/attachments/0123456789abcdef.png\n/data/attachments/fedcba9876543210.jpg',
     );
     setAttachmentsDir(null);
     await m.unmount();

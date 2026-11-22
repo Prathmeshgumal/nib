@@ -73,4 +73,22 @@ describe('an image is a chip until opened', () => {
     expect(isExpanded('0123456789abcdef.png')).toBe(false);
     expect(view.state.selection.node?.type.name).toBe('image');
   });
+
+  it('shows when its image is selected, so typing over it is no surprise', async () => {
+    const view = await open('See ![](attachments/0123456789abcdef.png) here\n');
+    const { NodeSelection } = await import('@milkdown/kit/prose/state');
+    let at = -1;
+    view.state.doc.descendants((node, pos) => { if (node.type.name === 'image') at = pos; });
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, at)));
+    expect(root.querySelector('.nib-image-chip').classList.contains('nib-image-chip-selected')).toBe(true);
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, at).constructor.near(view.state.doc.resolve(1))));
+    expect(root.querySelector('.nib-image-chip').classList.contains('nib-image-chip-selected')).toBe(false);
+  });
+
+  it('opens both copies of a picture used twice', async () => {
+    await open('![](attachments/0123456789abcdef.png) and ![](attachments/0123456789abcdef.png)\n');
+    press(root.querySelector('.nib-image-chip'));
+    expect(root.querySelectorAll('.nib-image-chip').length).toBe(0);
+    expect(root.querySelectorAll('.nib-image-collapse').length).toBe(2);
+  });
 });

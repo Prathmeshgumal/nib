@@ -6,20 +6,38 @@ import { setAttachmentsDir, withImagePaths } from './copyPaths';
 
 const DIR = '/home/someone/.local/share/nib/attachments';
 
+const A = '0123456789abcdef.png';
+const B = 'fedcba9876543210.jpg';
+
 describe('copied text points at the image files', () => {
-  it('swaps each attached image for a numbered label and its full path', () => {
-    const md = 'Fix the bug in ![](attachments/b441.jpg "the caption") and ![x](attachments/c2.png).';
+  it('labels each image in the text and lists the paths at the end, one per line', () => {
+    const md = `Fix the bug in ![](attachments/${A} "the caption") and ![x](attachments/${B}).`;
     expect(withImagePaths(md, DIR)).toBe(
-      `Fix the bug in (image 1) ${DIR}/b441.jpg and (image 2) ${DIR}/c2.png.`,
+      `Fix the bug in (image 1) and (image 2).\n\n${DIR}/${A}\n${DIR}/${B}`,
     );
   });
 
   it('numbers from where the copy starts in the note', () => {
-    expect(withImagePaths('see ![](attachments/x.png)', DIR, 3)).toBe(`see (image 3) ${DIR}/x.png`);
+    expect(withImagePaths(`see ![](attachments/${A})`, DIR, 3)).toBe(`see (image 3)\n\n${DIR}/${A}`);
   });
 
-  it('leaves images on the web, links and text alone', () => {
-    const md = '![](https://example.com/a.png) [attachments/x.png](attachments/x.png) plain';
+  it('lists a picture used twice twice, so the numbers still line up', () => {
+    expect(withImagePaths(`![](attachments/${A}) ![](attachments/${A})`, DIR)).toBe(
+      `(image 1) (image 2)\n\n${DIR}/${A}\n${DIR}/${A}`,
+    );
+  });
+
+  it('reads an image whose name has brackets in it', () => {
+    const md = `![shot \\[1\\].png](attachments/${A}) then ![](attachments/${B})`;
+    expect(withImagePaths(md, DIR)).toBe(`(image 1) then (image 2)\n\n${DIR}/${A}\n${DIR}/${B}`);
+  });
+
+  it('turns a space code back into a space', () => {
+    expect(withImagePaths(`&#x20;see ![](attachments/${A})&#x20;`, DIR)).toBe(`see (image 1)\n\n${DIR}/${A}`);
+  });
+
+  it('leaves images on the web, odd attachment names, links and text alone', () => {
+    const md = '![](https://example.com/a.png) ![](attachments/notahash.png) [attachments/x.png](attachments/x.png) plain';
     expect(withImagePaths(md, DIR)).toBe(md);
   });
 
@@ -28,7 +46,7 @@ describe('copied text points at the image files', () => {
   });
 
   it('changes nothing until the folder is known', () => {
-    const md = '![](attachments/b441.jpg)';
+    const md = `![](attachments/${A})`;
     expect(withImagePaths(md, null)).toBe(md);
   });
 });
@@ -67,8 +85,8 @@ describe('copying out of the editor', () => {
 
   it('writes the full path where the image was', async () => {
     setAttachmentsDir(DIR);
-    const text = await copyAll('Look at this\n\n![](attachments/b441.jpg)\n\nand fix it\n');
-    expect(text).toContain(`${DIR}/b441.jpg`);
+    const text = await copyAll(`Look at this\n\n![](attachments/${A})\n\nand fix it\n`);
+    expect(text).toContain(`\n${DIR}/${A}`);
     expect(text).not.toContain('](attachments/');
     expect(text).toContain('Look at this');
     expect(text).toContain('and fix it');
@@ -76,19 +94,13 @@ describe('copying out of the editor', () => {
 
   it('copies a line that ends in a space without the space code', async () => {
     setAttachmentsDir(DIR);
-    expect(await copyAll('Here is the image&#x20;\n\n![](attachments/b441.jpg)\n')).not.toContain('&#x20;');
-    expect(await copyAll('No image here&#x20;\n')).toBe('No image here');
-  });
-
-  it('copies a line that ends in a space without the space code', async () => {
-    setAttachmentsDir(DIR);
-    expect(await copyAll('Here is the image&#x20;\n\n![](attachments/b441.jpg)\n')).not.toContain('&#x20;');
-    expect(await copyAll('No image here&#x20;\n')).toBe('No image here');
+    expect(await copyAll(`Here is the image&#x20;\n\n![](attachments/${A})\n`)).not.toContain('&#x20;');
   });
 
   it('leaves text with no images to the editor as before', async () => {
     setAttachmentsDir(DIR);
     expect(await copyAll('just_some text\n')).toBe('just_some text');
+    expect(await copyAll('use <div> here\n')).not.toContain('\\<');
   });
 
   it('keeps the note-wide number when copying part of a note', async () => {
@@ -100,7 +112,8 @@ describe('copying out of the editor', () => {
     });
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, start, view.state.doc.content.size - 1)));
     const text = copied(view);
-    expect(text).toContain(`(image 2) ${DIR}/fedcba9876543210.png`);
+    expect(text).toContain('(image 2)');
+    expect(text).toContain(`${DIR}/fedcba9876543210.png`);
     expect(text).not.toContain('(image 1)');
   });
 

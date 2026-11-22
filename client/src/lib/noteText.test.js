@@ -12,6 +12,10 @@ describe('what a note is called', () => {
     );
   });
 
+  it('names an image whose name has brackets in it', () => {
+    expect(deriveTitle('', 'See ![shot \\[1\\].png](attachments/0123456789abcdef.png) ok\n')).toBe('See (image 1) ok');
+  });
+
   it('uses the title when there is one', () => {
     expect(deriveTitle('Plans', '# Other')).toBe('Plans');
   });

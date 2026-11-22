@@ -122,6 +122,7 @@ func TestDeriveTitle(t *testing.T) {
 		{"", "", "Untitled"},
 		{"   ", "   ", "Untitled"},
 		{"", "This&#x20;\nmore", "This"},
+		{"", `See ![shot \[1\].png](attachments/0123456789abcdef.png) ok`, "See (image 1) ok"},
 		{"", "Fix ![](attachments/0123456789abcdef.png) like ![a b](https://x.com/y.png \"t\") now", "Fix (image 1) like (image 2) now"},
 	} {
 		if got := DeriveTitle(tc.title, tc.content); got != tc.want {

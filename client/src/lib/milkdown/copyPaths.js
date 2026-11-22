@@ -5,14 +5,17 @@ import { attachedImages } from './imageChips';
 import { tidyEscapes } from './tidyEscapes';
 
 // Copying a prompt out of nib for Claude Code. In the note an image is
-// `![](attachments/x.jpg)`, a path that means nothing outside nib. Claude Code
-// turns a pasted absolute image path into an attached image - but it moves
-// every image to the front of the message and removes the path. So each image
-// is copied as "(image N)" and its full path: the path brings the picture, and
-// the label stays where the image was, matching the chip's name in nib.
+// `![](attachments/x.jpg)`, a path that means nothing outside nib.
 //
-// Only the plain text changes. The HTML copy keeps the image itself, so
-// pasting back into a note still gives a picture.
+// Claude Code attaches a pasted image path - but only when the path is alone
+// on its line (it splits each line at every space before a `/`, and keeps the
+// line as text unless every piece is a path). It also moves the pictures to
+// the front of the message. So each image becomes "(image N)" where it stood,
+// matching its chip in nib, and the paths follow at the end, one per line, in
+// the same order: the text reads as written and every picture arrives.
+//
+// Only the plain text changes. The HTML copy keeps the image, so pasting back
+// into a note still gives a picture.
 
 let attachmentsDir = null;
 
@@ -20,25 +23,59 @@ export function setAttachmentsDir(dir) {
   attachmentsDir = typeof dir === 'string' && dir ? dir.replace(/\/+$/, '') : null;
 }
 
-const IMAGE = /!\[[^\]]*\]\((?:<)?(attachments\/[^\s)>]+)(?:>)?(?:\s+"(?:[^"\\]|\\.)*")?\)/g;
+// Alt text can hold escaped brackets - the terminal writes a file's original
+// name there - and only real stored names count, the same ones chips are drawn
+// for, so the numbers here and on the chips cannot drift apart.
+const IMAGE =
+  /!\[(?:\\.|[^\]\\])*\]\(<?attachments\/([0-9a-f]{16}\.[a-z0-9]{1,8})>?(?:\s+"(?:[^"\\]|\\.)*")?\)/g;
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
-const pathOf = (dir, ref) => `${dir}/${ref.slice('attachments/'.length)}`;
+// `&#x20;` is how the serializer keeps a space at either end of a line. In
+// copied text it is just a space, and at the ends of a line not even that.
+function spaces(markdown) {
+  if (!markdown.includes('&#x20;')) return markdown;
+  let fence = null;
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const open = FENCE.exec(line);
+      if (open) {
+        if (fence === null) fence = open[1][0];
+        else if (fence === open[1][0]) fence = null;
+        return line;
+      }
+      if (fence !== null) return line;
+      return line
+        .replace(/^(?:&#x20;)+/, '')
+        .replace(/(?:&#x20;)+$/, '')
+        .replaceAll('&#x20;', ' ');
+    })
+    .join('\n');
+}
 
 // firstNumber is the note-wide number of the first image in `markdown`, so a
 // copy of part of a note still calls its images what their chips say.
 export function withImagePaths(markdown, dir = attachmentsDir, firstNumber = 1) {
   if (!dir) return markdown;
+  const paths = [];
   let n = firstNumber;
-  return markdown
-    .replace(IMAGE, (_, ref) => `(image ${n++}) ${pathOf(dir, ref)}`)
-    .replace(/!\[\]\(\)\n*/g, '');
+  const text = spaces(
+    markdown
+      .replace(IMAGE, (_, stored) => {
+        paths.push(`${dir}/${stored}`);
+        return `(image ${n++})`;
+      })
+      .replace(/!\[\]\(\)\n*/g, ''),
+  );
+  if (paths.length === 0) return text;
+  return `${text.trimEnd()}\n\n${paths.join('\n')}`;
 }
 
 function hasAttachedImage(fragment) {
   let found = false;
   fragment.descendants((node) => {
     if (found) return false;
-    if (typeof node.attrs?.src === 'string' && node.attrs.src.startsWith('attachments/')) found = true;
+    if (storedName(node.attrs?.src)) found = true;
     return !found;
   });
   return found;
@@ -89,7 +126,7 @@ function pngBlob(src) {
 function copyPicture(view, event) {
   const image = attachmentsDir && soleImage(view.state);
   if (!image) return false;
-  const text = `(image ${image.number}) ${pathOf(attachmentsDir, image.node.attrs.src)}`;
+  const text = `${attachmentsDir}/${image.name}`;
   if (event.clipboardData) event.clipboardData.setData('text/plain', text);
   event.preventDefault();
 
@@ -117,13 +154,13 @@ export function copyPaths(ctx) {
       ...prev.handleDOMEvents,
       copy: (view, event) => copyPicture(view, event) || prev.handleDOMEvents?.copy?.(view, event) || false,
     },
-    // Asked before Milkdown's own clipboard plugin. The text is tidied the way
-    // a saved note is, so a copy never carries `&#x20;` or stray backslashes.
+    // Asked before Milkdown's own clipboard plugin. A copy with no attached
+    // image is handed back to it (null), which copies plain text as plain text.
     clipboardTextSerializer: (slice, view) => {
+      if (!attachmentsDir || !hasAttachedImage(slice.content)) return null;
       const doc = ctx.get(schemaCtx).topNodeType.createAndFill(undefined, slice.content);
       if (!doc) return '';
       const markdown = tidyEscapes(ctx.get(serializerCtx)(doc));
-      if (!attachmentsDir || !hasAttachedImage(slice.content)) return markdown.trimEnd();
       const first = view ? imagesBefore(view.state) + 1 : 1;
       return withImagePaths(markdown, attachmentsDir, first).trimEnd();
     },

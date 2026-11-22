@@ -64,10 +64,12 @@ function select(view, getPos) {
   view.focus();
 }
 
-function chip(view, { node, name, number }, getPos) {
+function chip(view, { node, name, number }, getPos, selected) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'nib-image-chip';
+  // A selected image is hidden behind its chip, so the chip shows it: typing
+  // would replace the image, and Ctrl+C copies the picture.
+  button.className = selected ? 'nib-image-chip nib-image-chip-selected' : 'nib-image-chip';
   button.contentEditable = 'false';
   button.setAttribute('aria-label', `Image ${number}, show full image`);
   button.title = 'Show the full image (Shift+click selects it, to copy the picture)';
@@ -101,7 +103,8 @@ function collapse(view, { name, number }) {
   return button;
 }
 
-function decorate(view, doc) {
+function decorate(view, state) {
+  const { doc, selection } = state;
   const decorations = [];
   for (const image of attachedImages(doc)) {
     const { pos, node, name, number } = image;
@@ -117,10 +120,11 @@ function decorate(view, doc) {
     } else {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'nib-image-collapsed' }));
       // A block image's chip sits on its own line; an inline one in the text.
+      const selected = selection instanceof NodeSelection && selection.from === pos;
       decorations.push(
-        Decoration.widget(pos, (_view, getPos) => chip(view, image, getPos), {
+        Decoration.widget(pos, (_view, getPos) => chip(view, image, getPos, selected), {
           side: -1,
-          key: `chip-${number}-${name}-${block ? 'b' : 'i'}`,
+          key: `chip-${number}-${name}-${block ? 'b' : 'i'}${selected ? '-s' : ''}`,
           ignoreSelection: true,
         }),
       );
@@ -144,7 +148,7 @@ export const imageChips = $prose(() => {
     },
     props: {
       decorations(state) {
-        return view ? decorate(view, state.doc) : DecorationSet.empty;
+        return view ? decorate(view, state) : DecorationSet.empty;
       },
     },
   });

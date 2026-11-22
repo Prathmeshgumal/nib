@@ -354,7 +354,7 @@ func DeriveTitle(title, content string) string {
 
 // titleImage is an image in markdown. In a title it is called what a copy
 // from the web app calls it, "(image 1)", rather than shown as markdown.
-var titleImage = regexp.MustCompile(`!\[[^\]]*\]\([^)\s]*(?:\s+"[^"]*")?\)`)
+var titleImage = regexp.MustCompile(`!\[(?:\\.|\[[^\]]*\]|[^\]\\[])*\]\([^)\s]*(?:\s+"[^"]*")?\)`)
 
 func nameImages(line string) string {
 	n := 0
