@@ -6,6 +6,7 @@ import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import { attachment } from './attachmentNode';
 import { imageResize } from './imageResize';
+import { imageChips } from './imageChips';
 import { emptyTaskPlugin } from './emptyTask';
 import { blockMenu } from './blockMenu';
 import { buildTopBar } from './topBar';
@@ -13,6 +14,8 @@ import { editorChrome } from './editorChrome';
 import { taskCheckedIcon, taskUncheckedIcon } from './taskIcons';
 import { languageLabel, languages } from './languages';
 import { taskToggle } from './taskToggle';
+import { copyPaths } from './copyPaths';
+import { inlineUpload } from './inlineUpload';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -145,10 +148,13 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       // editing, and an aligned table is easier to read there. It happens once
       // and then holds - see the idempotency test.
       ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
+      copyPaths(ctx);
+      if (onUpload) inlineUpload(ctx, onUpload);
     })
     .use(imageFixes)
     .use(attachment)
     .use(imageResize)
+    .use(imageChips)
     .use(emptyTaskPlugin)
     .use(blockMenu)
     .use(taskToggle)

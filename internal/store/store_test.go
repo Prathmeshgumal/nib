@@ -114,6 +114,21 @@ func TestListIsNewestFirst(t *testing.T) {
 	}
 }
 
+func TestDropLineBreaks(t *testing.T) {
+	for in, want := range map[string]string{
+		"Top line\\\nnext": "Top line\nnext",
+		`C:\\` + "\nnext":  `C:\\` + "\nnext",
+		`odd\\\` + "\n":    `odd\\` + "\n",
+	} {
+		if got := dropLineBreaks(in); got != want {
+			t.Errorf("dropLineBreaks(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := DeriveTitle("", Unescape(dropLineBreaks("Top line\\\nnext"))); got != "Top line" {
+		t.Errorf("title = %q", got)
+	}
+}
+
 func TestDeriveTitle(t *testing.T) {
 	for _, tc := range []struct{ title, content, want string }{
 		{"Explicit", "body", "Explicit"},
@@ -121,6 +136,9 @@ func TestDeriveTitle(t *testing.T) {
 		{"", "\n\n  spaced first line", "spaced first line"},
 		{"", "", "Untitled"},
 		{"   ", "   ", "Untitled"},
+		{"", "This&#x20;\nmore", "This"},
+		{"", `See ![shot \[1\].png](attachments/0123456789abcdef.png) ok`, "See (image 1) ok"},
+		{"", "Fix ![](attachments/0123456789abcdef.png) like ![a b](https://x.com/y.png \"t\") now", "Fix (image 1) like (image 2) now"},
 	} {
 		if got := DeriveTitle(tc.title, tc.content); got != tc.want {
 			t.Errorf("DeriveTitle(%q, %q) = %q, want %q", tc.title, tc.content, got, tc.want)

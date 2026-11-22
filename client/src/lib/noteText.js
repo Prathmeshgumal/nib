@@ -22,14 +22,33 @@ const plainLine = (line) =>
 // The title the store gives a note that was saved without one: its first line
 // with words on it. Mirrors DeriveTitle in internal/store, so the title line
 // shows, while you are still typing, what the list will call the note.
+// An image in the first line is called what a copy calls it - "(image 1)" -
+// rather than shown as its markdown. Mirrors titleImage in internal/store.
+// Alt text may hold brackets, escaped or (once unescaped) matched pairs.
+const TITLE_IMAGE = /!\[(?:\\.|\[[^\]]*\]|[^\]\\[])*\]\([^)\s]*(?:\s+"[^"]*")?\)/g;
+const nameImages = (line) => {
+  let n = 0;
+  return line.replace(TITLE_IMAGE, () => `(image ${++n})`);
+};
+
+// A line break inside a paragraph is saved as a backslash ending the line. An
+// odd run of them ends in that mark; an even run is escaped backslashes, which
+// are text. Read before unescaping, while the two can still be told apart.
+// Mirrors dropLineBreaks in internal/store.
+const dropLineBreaks = (s) => s.replace(/(^|[^\\])((?:\\\\)*)\\$/gm, '$1$2');
+
 export function deriveTitle(title, content) {
   const t = (title || '').trim();
   if (t) return t;
   // Unescaped first, then the first line - the order the store does it in.
-  for (const line of unescapeMarkdown(content || '').split('\n')) {
+  for (const line of unescapeMarkdown(dropLineBreaks(content || '')).split('\n')) {
     // Exactly what the store does - strip leading '#' and spaces, then trim -
     // so the two cannot drift apart.
-    const words = line.trim().replace(/^[#\s]+/, '').trim();
+    const words = nameImages(line)
+      .trim()
+      .replace(/^[#\s]+/, '')
+      .replace(/(?:&#x20;)+$/, '')
+      .trim();
     if (words) return words.slice(0, 200);
   }
   return '';

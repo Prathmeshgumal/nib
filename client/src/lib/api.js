@@ -37,3 +37,5 @@ export async function uploadAttachment(file) {
   }
   return res.json();
 }
+
+export const health = () => request('/health');

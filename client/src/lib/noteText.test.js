@@ -2,6 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { deriveTitle, excerpt, unescapeMarkdown } from './noteText';
 
 describe('what a note is called', () => {
+  it('leaves a trailing space code out of the title', () => {
+    expect(deriveTitle('', 'This is a test&#x20;\n')).toBe('This is a test');
+  });
+
+  it('names images in the first line the way a copy does', () => {
+    expect(deriveTitle('', 'Fix ![](attachments/0123456789abcdef.png) like ![a b](https://x.com/y.png "t") now\n')).toBe(
+      'Fix (image 1) like (image 2) now',
+    );
+  });
+
+  it('names an image whose name has brackets in it', () => {
+    expect(deriveTitle('', 'See ![shot \\[1\\].png](attachments/0123456789abcdef.png) ok\n')).toBe('See (image 1) ok');
+  });
+
+  it('leaves a line break backslash out of the title', () => {
+    expect(deriveTitle('', 'Top line\\\nnext\n')).toBe('Top line');
+  });
+
   it('uses the title when there is one', () => {
     expect(deriveTitle('Plans', '# Other')).toBe('Plans');
   });

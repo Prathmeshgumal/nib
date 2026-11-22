@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -52,7 +53,18 @@ func (s *Server) Stop() error { return s.srv.Close() }
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "store": "sqlite"})
+		// attachments is where uploaded files live on this machine. The page
+		// writes it into copied text, so an image pasted into a terminal
+		// arrives as a path a tool there can open.
+		dir := s.store.Attachments().Dir()
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok":          true,
+			"store":       "sqlite",
+			"attachments": dir,
+		})
 	})
 	mux.HandleFunc("/api/notes", s.handleCollection)
 	mux.HandleFunc("/api/notes/", s.handleItem)

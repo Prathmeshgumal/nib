@@ -1,4 +1,5 @@
-import { ArrowLeft, PanelLeftOpen } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, Copy, PanelLeftOpen } from 'lucide-react';
 import { SIDEBAR_SHORTCUT } from '@/components/NoteList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,21 @@ export default function NotePane({ note, status, onChange, onBack, onReady, side
   // says while the first line is still being typed, instead of "Untitled".
   const derived = deriveTitle('', note.content);
   const placeholder = derived || 'Untitled';
+
+  // The whole note for Claude Code, images as files. The button says what
+  // happened for a moment, the way a code block's Copy does.
+  const editor = useRef(null);
+  const [copied, setCopied] = useState(null);
+  useEffect(() => {
+    if (copied === null) return undefined;
+    const t = setTimeout(() => setCopied(null), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
+  const copy = async () => {
+    const ok = (await editor.current?.copyNote?.()) ?? false;
+    setCopied(ok ? 'yes' : 'no');
+  };
+  const copyLabel = copied === 'yes' ? 'Copied' : copied === 'no' ? "Couldn't copy" : 'Copy';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -79,6 +95,19 @@ export default function NotePane({ note, status, onChange, onBack, onReady, side
           {note.updated_at ? relativeTime(note.updated_at) : 'Not saved yet'}
         </span>
 
+        <Button
+          variant="ghost"
+          size="sm"
+          data-copy-note=""
+          className="text-muted-foreground hover:text-foreground h-8 shrink-0 gap-1.5 px-2 text-xs pointer-coarse:h-11"
+          title="Copy the whole note, with images as files"
+          aria-label={copyLabel === 'Copy' ? 'Copy the whole note' : copyLabel}
+          onClick={copy}
+        >
+          {copied === 'yes' ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          <span className="hidden sm:inline">{copyLabel}</span>
+        </Button>
+
         {/* The one word that says whether what is on screen has reached the
             note, with a dot to find it at a glance. The terminal shows the
             same words, for the same reason. */}
@@ -93,7 +122,14 @@ export default function NotePane({ note, status, onChange, onBack, onReady, side
         )}
       </header>
 
-      <MilkdownEditor note={note} onChange={onChange} onReady={onReady} />
+      <MilkdownEditor
+        note={note}
+        onChange={onChange}
+        onReady={(api) => {
+          editor.current = api;
+          onReady?.(api);
+        }}
+      />
     </div>
   );
 }

@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils';
 import { editable, savePayload } from '@/lib/notePayload';
 import { deriveTitle } from '@/lib/noteText';
 import { TrashDialog } from '@/components/TrashDialog';
+import { setAttachmentsDir } from '@/lib/milkdown/copyPaths';
 import {
+  health,
   createNote,
   deleteNote,
   emptyTrash,
@@ -104,6 +106,13 @@ export default function App() {
   useEffect(() => {
     refreshTrash();
   }, [refreshTrash]);
+
+  // Where images live on this machine, so copied text can point at them.
+  useEffect(() => {
+    health()
+      .then((h) => setAttachmentsDir(h?.attachments))
+      .catch(() => {});
+  }, []);
 
   // Every tab said "Notes", which is no help with two or three of them open.
   useEffect(() => {

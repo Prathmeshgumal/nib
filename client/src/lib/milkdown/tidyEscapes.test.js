@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tidyEscapes } from './tidyEscapes';
+import { dropTrailingSpaceRefs, tidyEscapes } from './tidyEscapes';
 
 describe('backslashes remark did not need', () => {
   it('leaves a note with no escapes alone', () => {
@@ -45,5 +45,28 @@ describe('a note where only some escapes are safe', () => {
   it('drops the safe one and keeps the rest', () => {
     const md = 've\\_hr\n\n\\# not a heading\n';
     expect(tidyEscapes(md)).toBe('ve_hr\n\n\\# not a heading\n');
+  });
+});
+
+describe('a space at the end of a line', () => {
+  it('is dropped rather than saved as a code', () => {
+    expect(dropTrailingSpaceRefs('first image&#x20;\nnext')).toBe('first image\nnext');
+  });
+
+  it('drops a run of them', () => {
+    expect(dropTrailingSpaceRefs('a&#x20;&#x20;')).toBe('a');
+  });
+
+  it('leaves code blocks exactly as written', () => {
+    const md = '```\ncode&#x20;\n```\n\n~~~\nmore&#x20;\n~~~';
+    expect(dropTrailingSpaceRefs(md)).toBe(md);
+  });
+
+  it('keeps one in the middle of a line', () => {
+    expect(dropTrailingSpaceRefs('a&#x20;b')).toBe('a&#x20;b');
+  });
+
+  it('is part of tidying a note, even one with no backslashes', () => {
+    expect(tidyEscapes('Here is the image&#x20;\n')).toBe('Here is the image\n');
   });
 });
