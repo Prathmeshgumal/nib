@@ -487,8 +487,16 @@ ticks.
 
 **Drag a file onto the note** and it is attached — or paste one, so a screenshot goes
 from `PrtSc` to `Ctrl+V` without ever becoming a file you have to name and find again.
-Images and video sit in the writing and can be dragged wider or narrower by the handle at
-their edge; the width is remembered per file. See [images and files](#images-and-files)
+An image shows as a small chip in the line — a thumbnail and "Image 1" — so a prompt with
+three screenshots still reads as one sentence. Click a chip to open the image in place,
+and the button at its corner folds it back. Video sits in the writing, and an opened image
+or a video can be dragged wider or narrower by the handle at its edge; the width is
+remembered per file.
+
+**Copy a note into Claude Code and the images go with it.** The Copy button at the top of
+the note, or selecting text and pressing `Ctrl+C`, puts "(image 1)" where each picture
+was and the files' full paths at the end, one per line. Claude Code attaches each path as
+an image, in order, so "Image 1" in the note is image 1 in the prompt. See [images and files](#images-and-files)
 for where they are kept, and [files in the browser](#files-in-the-browser) for what the
 browser does with them.
 
