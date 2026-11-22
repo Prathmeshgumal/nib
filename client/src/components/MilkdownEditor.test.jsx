@@ -214,3 +214,22 @@ describe('what the app can ask the editor', () => {
     await m.unmount();
   });
 });
+
+describe('copying the whole note', () => {
+  it('writes every image as its label and full path', async () => {
+    const { setAttachmentsDir } = await import('@/lib/milkdown/copyPaths');
+    setAttachmentsDir('/data/attachments');
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    const m = await mount({
+      note: note('a', 'Fix ![](attachments/0123456789abcdef.png) and ![](attachments/fedcba9876543210.jpg)\n'),
+    });
+    expect(await m.crepe.copyNote()).toBe(true);
+    expect(writeText).toHaveBeenCalledWith(
+      'Fix (image 1) /data/attachments/0123456789abcdef.png and (image 2) /data/attachments/fedcba9876543210.jpg',
+    );
+    setAttachmentsDir(null);
+    await m.unmount();
+  });
+});

@@ -1,5 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { NodeSelection, Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { storedName } from '@/lib/attachments';
 import { isExpanded, setExpanded } from '@/lib/expandedImages';
@@ -45,23 +45,32 @@ function onPress(el, act) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    act();
+    act(e);
   });
   // Enter and Space for a keyboard, which never sends a pointerdown.
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
-    act();
+    act(e);
   });
 }
 
-function chip(view, { node, name, number }) {
+// Shift on a chip selects its image instead of opening it, so it can be
+// copied on its own - as the picture itself (see copyPaths.js).
+function select(view, getPos) {
+  const pos = getPos();
+  if (typeof pos !== 'number') return;
+  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)));
+  view.focus();
+}
+
+function chip(view, { node, name, number }, getPos) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'nib-image-chip';
   button.contentEditable = 'false';
   button.setAttribute('aria-label', `Image ${number}, show full image`);
-  button.title = 'Show the full image';
+  button.title = 'Show the full image (Shift+click selects it, to copy the picture)';
   const thumb = document.createElement('img');
   thumb.className = 'nib-image-chip-thumb';
   thumb.src = node.attrs.src;
@@ -69,7 +78,8 @@ function chip(view, { node, name, number }) {
   const label = document.createElement('span');
   label.textContent = `Image ${number}`;
   button.append(thumb, label);
-  onPress(button, () => {
+  onPress(button, (e) => {
+    if (e.shiftKey) return select(view, getPos);
     setExpanded(name, true);
     redraw(view);
   });
@@ -108,7 +118,7 @@ function decorate(view, doc) {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'nib-image-collapsed' }));
       // A block image's chip sits on its own line; an inline one in the text.
       decorations.push(
-        Decoration.widget(pos, () => chip(view, image), {
+        Decoration.widget(pos, (_view, getPos) => chip(view, image, getPos), {
           side: -1,
           key: `chip-${number}-${name}-${block ? 'b' : 'i'}`,
           ignoreSelection: true,

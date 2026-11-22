@@ -87,7 +87,7 @@ export function openLink(href) {
 
 // --- Copying code --------------------------------------------------------
 
-async function writeClipboard(text) {
+export async function writeClipboard(text) {
   try {
     if (!navigator.clipboard?.writeText) throw new Error('no clipboard');
     await navigator.clipboard.writeText(text);

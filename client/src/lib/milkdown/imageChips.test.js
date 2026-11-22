@@ -64,4 +64,13 @@ describe('an image is a chip until opened', () => {
     expect(isExpanded('0123456789abcdef.png')).toBe(false);
     expect(root.querySelectorAll('.nib-image-collapsed').length).toBe(1);
   });
+
+  it('selects the image instead with Shift, ready to copy on its own', async () => {
+    const view = await open('See ![](attachments/0123456789abcdef.png) here\n');
+    root.querySelector('.nib-image-chip').dispatchEvent(
+      new MouseEvent('pointerdown', { bubbles: true, cancelable: true, shiftKey: true }),
+    );
+    expect(isExpanded('0123456789abcdef.png')).toBe(false);
+    expect(view.state.selection.node?.type.name).toBe('image');
+  });
 });

@@ -3,6 +3,8 @@ import '@/lib/milkdown/crepe.css';
 import { createEditor } from '@/lib/milkdown/editorConfig';
 import { tidyEscapes } from '@/lib/milkdown/tidyEscapes';
 import { uploadAttachment } from '@/lib/api';
+import { withImagePaths } from '@/lib/milkdown/copyPaths';
+import { writeClipboard } from '@/lib/milkdown/chromeExtras';
 
 // The note, as one surface. There is no read mode and no write mode any more:
 // what is on screen is the note, and typing into it is how it changes.
@@ -95,6 +97,9 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
         onReady?.({
           // The editor itself, for anything that needs to reach ProseMirror.
           editor: crepe.editor,
+          // The whole note, ready to paste into Claude Code: each image as
+          // "(image N)" and its full path. See copyPaths.js.
+          copyNote: () => writeClipboard(withImagePaths(read()).trimEnd()),
           pendingMarkdown() {
             let markdown;
             try {
