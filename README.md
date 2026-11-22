@@ -34,7 +34,7 @@ open at once, backed by the same file.
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-web-dark.png">
     <img src="docs/screenshot-web.png" width="880"
-         alt="nib in a browser: a note with a task list, a table, a quote and a code block, with the block handle showing beside a heading">
+         alt="nib in a browser: a prompt with screenshots sitting in the text as Image 1 and Image 3 chips, Image 2 opened in place, a task list and a table">
   </picture>
 </div>
 
@@ -61,7 +61,7 @@ Most note apps make you pick a side. Terminal tools are fast but ask you to give
 readable, formatted view. Desktop apps are comfortable but ship a browser engine to draw
 a text box, and want an account before you can write anything down.
 
-`nib` is one 21 MB binary that gives you both views of the same SQLite file. It opens a
+`nib` is one 22 MB binary that gives you both views of the same SQLite file. It opens a
 thousand notes and is ready in under 20 ms — less than Node takes to start an empty
 script — holds about 28 MB of memory while you write, and leaves nothing running when
 you quit.
