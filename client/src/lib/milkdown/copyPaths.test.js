@@ -36,6 +36,15 @@ describe('copied text points at the image files', () => {
     expect(withImagePaths(`C:\\\\ ![](attachments/${A}) end \\\\\nnext`, DIR)).toBe(`C:\\\\ (image 1) end \\\\\nnext\n\n${DIR}/${A}`);
   });
 
+  it('tightens a table whose padding was sized for the image markdown', () => {
+    const md = [
+      '| a                                       | b |',
+      '| --------------------------------------- | - |',
+      `| cell ![](attachments/${A}) item | x |`,
+    ].join('\n');
+    expect(withImagePaths(md, DIR)).toBe(`| a | b |\n| --- | --- |\n| cell (image 1) item | x |\n\n${DIR}/${A}`);
+  });
+
   it('turns a space code back into a space', () => {
     expect(withImagePaths(`&#x20;see ![](attachments/${A})&#x20;`, DIR)).toBe(`see (image 1)\n\n${DIR}/${A}`);
   });

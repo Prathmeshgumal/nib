@@ -1,3 +1,4 @@
+import { editorViewOptionsCtx } from '@milkdown/kit/core';
 import { uploadConfig } from '@milkdown/kit/plugin/upload';
 import { toast } from 'sonner';
 
@@ -28,5 +29,38 @@ export function inlineUploader(onUpload) {
 }
 
 export function inlineUpload(ctx, onUpload) {
-  ctx.update(uploadConfig.key, (prev) => ({ ...prev, uploader: inlineUploader(onUpload) }));
+  ctx.update(uploadConfig.key, (prev) => ({
+    ...prev,
+    uploader: inlineUploader(onUpload),
+    // A browser's "Copy image", Slack and many screenshot tools put HTML on
+    // the clipboard beside the picture itself. Left off, that HTML won and the
+    // paste became a link to someone else's copy, or nothing at all. The file
+    // is what was meant. A copy with no file - text from nib or a web page -
+    // still pastes as before.
+    enableHtmlFileUploader: true,
+  }));
+  // Milkdown's clipboard plugin takes every paste with HTML in it before the
+  // upload plugin is asked, so a picture copied with HTML beside it never got
+  // uploaded - in a to-do, a list, a table, anywhere. The editor's own props
+  // are asked before any plugin's, so a paste holding an image file is handed
+  // to the upload plugin here, first.
+  ctx.update(editorViewOptionsCtx, (prev) => ({
+    ...prev,
+    handlePaste: (view, event, slice) => {
+      if (hasImageFile(event.clipboardData)) {
+        const upload = view.state.plugins.find((plugin) => plugin.key.startsWith('MILKDOWN_UPLOAD'));
+        if (upload?.props.handlePaste?.call(upload, view, event, slice)) return true;
+      }
+      return prev.handlePaste?.(view, event, slice) ?? false;
+    },
+  }));
+}
+
+function hasImageFile(data) {
+  const files = data?.files;
+  if (!files) return false;
+  for (let i = 0; i < files.length; i++) {
+    if (files.item ? files.item(i)?.type.startsWith('image/') : files[i]?.type.startsWith('image/')) return true;
+  }
+  return false;
 }

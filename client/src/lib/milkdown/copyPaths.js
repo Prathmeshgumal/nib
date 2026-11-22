@@ -30,6 +30,18 @@ const IMAGE =
   /!\[(?:\\.|[^\]\\])*\]\(<?attachments\/([0-9a-f]{16}\.[a-z0-9]{1,8})>?(?:\s+"(?:[^"\\]|\\.)*")?\)/g;
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
+// A table is padded so its columns line up in the note, sized for the image
+// markdown in it. In a copy the images are shorter labels, and the padding
+// leaves gaps, so each row is tightened: one space around each cell, and a
+// plain `---` under the header (keeping any `:` that sets alignment).
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const DELIMITER_ROW = /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/;
+
+function tightRow(line) {
+  if (DELIMITER_ROW.test(line)) return line.trim().replace(/\s*(:?)-+(:?)\s*(?=\|)/g, ' $1---$2 ');
+  return line.trim().replace(/ {2,}/g, ' ');
+}
+
 // Markdown's ways of keeping something the eye cannot see, turned back into
 // what they stand for. `&#x20;` keeps a space at either end of a line: in a
 // copy it is just a space, and at the ends of a line not even that. A line
@@ -47,6 +59,7 @@ function plainLines(markdown) {
         return line;
       }
       if (fence !== null) return line;
+      if (TABLE_ROW.test(line)) return tightRow(line);
       const trailing = /\\+$/.exec(line)?.[0].length ?? 0;
       if (trailing % 2 === 1) line = line.slice(0, -1).trimEnd();
       return line
