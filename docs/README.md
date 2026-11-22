@@ -54,6 +54,11 @@ browser UI, taken at 1440×900 against a throwaway database of demo notes — ne
 against real ones, since the file is published. PNG rather than SVG here because
 a browser screenshot is a raster image; the terminal shots above stay SVG.
 
+The note in them is a prompt with image chips: the pasted pictures are phone-width
+screenshots of nib itself, dark ones in the light shot and light ones in the dark
+shot, so the thumbnails stand out. `site/screenshot-chips.png` is the note area
+cropped out of `screenshot-web.png`, for the landing page's file section.
+
 ## A note on the binary
 
 `./build.sh` compiles with cgo enabled, so the binary it leaves in the working

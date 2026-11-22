@@ -4,20 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nib — Markdown notes that never leave your machine</title>
-<meta name="description" content="A Markdown note taker that lives in your terminal and in your browser, from the same 21 MB binary. One SQLite file on your own disk. No account, no cloud, no telemetry.">
+<meta name="description" content="A Markdown note taker that lives in your terminal and in your browser, from the same 22 MB binary. One SQLite file on your own disk. No account, no cloud, no telemetry.">
 <link rel="canonical" href="https://nib-note.vercel.app/">
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://nib-note.vercel.app/">
 <meta property="og:title" content="nib — Markdown notes that never leave your machine">
-<meta property="og:description" content="A terminal note taker with a browser UI in the same 21 MB binary. Opens 1,000 notes in 19 ms. Local-first, MIT licensed.">
+<meta property="og:description" content="A terminal note taker with a browser UI in the same 22 MB binary. Opens 1,000 notes in 19 ms. Local-first, MIT licensed.">
 <meta property="og:image" content="https://nib-note.vercel.app/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="nib running in a terminal: a note with a task list, and the list of notes down the right-hand side">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="nib — Markdown notes that never leave your machine">
-<meta name="twitter:description" content="A terminal note taker with a browser UI in the same 21 MB binary. Local-first, MIT licensed.">
+<meta name="twitter:description" content="A terminal note taker with a browser UI in the same 22 MB binary. Local-first, MIT licensed.">
 <meta name="twitter:image" content="https://nib-note.vercel.app/og.png">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23071022'/><text y='23' x='4' font-size='20' font-family='monospace' fill='%23ffd02e'>$</text></svg>">
@@ -416,7 +416,7 @@
     <li>
       <span>ONE BINARY</span><span class="y">◆</span>
       <span>TWO INTERFACES</span><span class="y">◆</span>
-      <span>21 MB</span><span class="y">◆</span>
+      <span>22 MB</span><span class="y">◆</span>
       <span>18.7 MS TO READY</span><span class="y">◆</span>
       <span>NO ACCOUNT</span><span class="y">◆</span>
       <span>NO CLOUD</span><span class="y">◆</span>
@@ -467,7 +467,7 @@
     <div class="herofoot">
       <p class="lede">
         A Markdown note taker that lives in your terminal — and in your browser,
-        from the same 21 MB binary. One SQLite file on your own disk. Nothing
+        from the same 22 MB binary. One SQLite file on your own disk. Nothing
         running when you quit.
       </p>
       <div>
@@ -629,6 +629,17 @@
             to name and then find again.
           </p>
           <p class="body">
+            A picture sits in the line as a chip — a thumbnail and
+            <em>Image 1</em> — so a prompt with three screenshots still reads
+            as one sentence. Click a chip and the picture opens in place.
+          </p>
+          <p class="body">
+            Built for prompts. Press <strong>Copy</strong> and the note goes to
+            Claude Code with <code class="i" style="white-space:nowrap">(image 1)</code> where each picture
+            was and its path at the end, so every image is attached in the
+            order you wrote it.
+          </p>
+          <p class="body">
             In the terminal, drag the file onto the window. A terminal has no
             drag-and-drop of its own: it pastes the file's <em>path</em>. nib
             notices a paste that names only files that exist and attaches them
@@ -667,6 +678,15 @@
 <span class="th">  nib.db</span>
 <span class="th">  attachments/</span><span class="tl">8f3a91c2d4e5f607.png</span></pre>
           </div>
+          <figure class="term" style="margin:28px 0 0">
+            <div class="tbar">
+              <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+              <span>nib — in the browser</span>
+            </div>
+            <img src="screenshot-chips.png" width="780" height="615" loading="lazy"
+                 style="display:block;width:100%;height:auto;background:#fff"
+                 alt="A note in the browser: two screenshots sit in the text as chips labelled Image 1 and Image 3, and Image 2 is opened in place">
+          </figure>
         </div>
       </div>
     </div>
