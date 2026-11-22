@@ -44,13 +44,15 @@ describe('images can be resized, the way they could before', () => {
 describe('resizing an image never reaches the note', () => {
   it('leaves the markdown byte-identical', async () => {
     const md = '![diagram](attachments/4444444444444444.png)\n';
+    // Only an opened image has a grip to drag; a collapsed one is a chip.
+    localStorage.setItem('nib.expanded.4444444444444444.png', '1');
     const root = document.createElement('div');
     document.body.appendChild(root);
     const crepe = createEditor(root, { markdown: md });
     await crepe.create();
 
     const grip = root.querySelector('.nib-grip');
-    const img = root.querySelector('img');
+    const img = root.querySelector('img:not(.nib-image-chip-thumb)');
     img.getBoundingClientRect = () => ({
       width: img.style.width ? Number.parseFloat(img.style.width) : 300,
     });

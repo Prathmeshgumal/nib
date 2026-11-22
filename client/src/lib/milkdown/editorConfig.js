@@ -6,6 +6,7 @@ import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
 import { attachment } from './attachmentNode';
 import { imageResize } from './imageResize';
+import { imageChips } from './imageChips';
 import { emptyTaskPlugin } from './emptyTask';
 import { blockMenu } from './blockMenu';
 import { buildTopBar } from './topBar';
@@ -151,6 +152,7 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     .use(imageFixes)
     .use(attachment)
     .use(imageResize)
+    .use(imageChips)
     .use(emptyTaskPlugin)
     .use(blockMenu)
     .use(taskToggle)

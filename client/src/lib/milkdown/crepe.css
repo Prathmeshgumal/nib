@@ -708,3 +708,63 @@
     mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
   }
 }
+
+/* --- Images as chips ----------------------------------------------------- */
+/* A collapsed image is drawn only as its chip: the picture, its resize grip
+ * and its caption step aside. The node stays in the document - this is looks
+ * only - so the note's markdown is exactly what it was. */
+.milkdown .nib-image-collapsed,
+.milkdown .nib-image-collapsed + .nib-grip {
+  display: none !important;
+}
+.milkdown .nib-image-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  margin: 0 2px;
+  padding: 0 7px 0 3px;
+  vertical-align: middle;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 150ms, border-color 150ms;
+}
+.milkdown .nib-image-chip:hover {
+  border-color: var(--muted-foreground);
+}
+.milkdown .nib-image-chip-thumb {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-radius: 3px;
+  object-fit: cover;
+}
+/* An opened image keeps a way back to its chip, just above it. */
+.milkdown .nib-image-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 8px 0 -4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--popover);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.milkdown .nib-image-collapse:hover {
+  color: var(--foreground);
+}
+.milkdown .nib-image-chip:focus-visible,
+.milkdown .nib-image-collapse:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
