@@ -30,6 +30,26 @@ export function clearOfBar(bubble, bar, selectionBottom) {
   return current + (selectionBottom + GAP - a.top);
 }
 
+// The box for pasting a link. Crepe places it
+// flush against the text, with no gap at all, so it covered the top of what
+// was selected - and on a note's first line, where the space above belongs to
+// the sticky bar, it slid underneath it and lost its top edge. It sits a
+// gap above the text when there is room, and a gap below it when there is not.
+//
+// Returns the new `top`, or null when the box can stay where it is.
+export function besideSelection(box, bar, selectionTop, selectionBottom) {
+  if (!box) return null;
+  const a = box.getBoundingClientRect();
+  const height = a.bottom - a.top;
+  if (height <= 0) return null;
+  const barBottom = bar ? bar.getBoundingClientRect().bottom : -Infinity;
+  const above = selectionTop - GAP - height;
+  const want = above >= barBottom ? above : selectionBottom + GAP;
+  if (Math.abs(a.top - want) < 1) return null;
+  const current = parseFloat(box.style.top) || 0;
+  return current + (want - a.top);
+}
+
 // The plus and the dots are plain divs. They get names, so a screen reader can
 // say what they are and a pointer resting on one gets a tooltip.
 export function labelBlockHandle(handle) {
@@ -58,16 +78,28 @@ export const editorChrome = $prose(() => new Plugin({
       if (bar) labelTopBar(bar);
       labelBlockHandle(root.querySelector('.milkdown-block-handle'));
 
-      const bubble = root.querySelector('.milkdown-toolbar');
-      if (bubble?.dataset.show !== 'true') return;
-      let bottom;
+      let from;
+      let to;
       try {
-        bottom = view.coordsAtPos(view.state.selection.to).bottom;
+        from = view.coordsAtPos(view.state.selection.from);
+        to = view.coordsAtPos(view.state.selection.to);
       } catch {
         return;
       }
-      const top = clearOfBar(bubble, bar, bottom);
-      if (top !== null) bubble.style.top = `${top}px`;
+
+      const bubble = root.querySelector('.milkdown-toolbar');
+      if (bubble?.dataset.show === 'true') {
+        const top = clearOfBar(bubble, bar, to.bottom);
+        if (top !== null) bubble.style.top = `${top}px`;
+      }
+
+      // Only the box for pasting a link hangs off the selection. The preview
+      // hangs off whichever link is under the pointer, which Crepe places.
+      const linkEdit = root.querySelector('.milkdown-link-edit');
+      if (linkEdit?.dataset.show === 'true') {
+        const top = besideSelection(linkEdit, bar, Math.min(from.top, to.top), Math.max(from.bottom, to.bottom));
+        if (top !== null) linkEdit.style.top = `${top}px`;
+      }
     };
 
     // One pass per frame, however many changes land in it.

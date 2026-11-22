@@ -1,20 +1,34 @@
-import { FileText, NotebookPen, Plus, Search, Trash2, Undo2, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { FileText, Plus, Search, Trash2, Undo2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
+import { DeleteNoteDialog } from '@/components/DeleteNoteDialog';
 import { relativeTime, useMinuteTick } from '@/lib/time';
 import { cn } from '@/lib/utils';
-import { excerpt } from '@/lib/noteText';
+
+// ⌘ on a Mac, Ctrl everywhere else - the hint has to name the key that works.
+const isMac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform);
+const MOD = isMac ? '⌘' : 'Ctrl';
+
+// One row of the sidebar's actions: icon, words, and anything on the right.
+const rowClass =
+  'text-foreground/80 hover:bg-accent hover:text-foreground h-8 w-full justify-start gap-2.5 px-2 font-normal pointer-coarse:h-11';
+
+function Kbd({ children }) {
+  return (
+    <kbd className="text-muted-foreground bg-background ml-auto rounded border px-1.5 font-sans text-[11px] leading-4">
+      {children}
+    </kbd>
+  );
+}
 
 export default function NoteList({
   notes,
   selectedId,
   onSelect,
   onNew,
+  onDelete,
   query,
   onQuery,
   trashCount,
@@ -24,35 +38,72 @@ export default function NoteList({
   className,
 }) {
   useMinuteTick();
+  const search = useRef(null);
+
+  // Ctrl+K / ⌘K jumps to the search, from anywhere - the shortcut the hint in
+  // the field promises.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      search.current?.focus();
+      search.current?.select();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const count =
+    notes === null
+      ? null
+      : query
+        ? `${notes.length} ${notes.length === 1 ? 'match' : 'matches'}`
+        : notes.length;
+
   return (
     <aside
       className={cn(
-        'bg-muted flex min-h-0 w-full flex-1 flex-col border-r md:w-80 md:flex-none md:shrink-0',
+        'bg-sidebar flex min-h-0 w-full flex-1 flex-col border-r md:w-64 md:flex-none md:shrink-0',
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-4 py-3.5">
+      <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
-          <NotebookPen className="size-5" />
-          <h1 className="text-base font-semibold tracking-tight">Notes</h1>
+          <span
+            aria-hidden="true"
+            className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md text-xs font-semibold"
+          >
+            n
+          </span>
+          <h1 className="text-sm font-semibold tracking-tight">nib</h1>
         </div>
         <ModeToggle />
       </div>
-      <Separator />
 
-      <div className="space-y-3 p-3">
-        <Button className="w-full" onClick={onNew}>
-          <Plus /> New note
-        </Button>
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
+      <div className="flex flex-col gap-0.5 px-2 pb-2">
+        {/* Search sits in the list of actions, shaped like the rows around
+            it, rather than as a boxed form field above them. */}
+        <div className="group/search relative">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
+          <input
+            ref={search}
             value={query}
-            placeholder="Search notes…"
+            placeholder="Search"
             aria-label="Search notes"
-            className="bg-background pr-8 pl-8"
+            aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
+            className="placeholder:text-foreground/80 hover:bg-accent focus:bg-background focus:placeholder:text-muted-foreground focus-visible:ring-ring/50 h-8 w-full rounded-md bg-transparent pr-12 pl-8 text-sm outline-none focus:shadow-xs focus-visible:ring-[3px] pointer-coarse:h-11"
             onChange={(e) => onQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && query) {
+                e.stopPropagation();
+                onQuery('');
+              }
+            }}
           />
+          <span className="pointer-events-none absolute top-1/2 right-2 flex -translate-y-1/2">
+            {!query && <Kbd>{MOD} K</Kbd>}
+          </span>
           {query && (
             <button
               type="button"
@@ -64,82 +115,81 @@ export default function NoteList({
             </button>
           )}
         </div>
+
+        <Button variant="ghost" className={rowClass} onClick={onNew}>
+          <Plus /> New note
+        </Button>
+
+        <Button variant="ghost" className={rowClass} onClick={onOpenTrash}>
+          <Trash2 /> Trash
+          {trashCount > 0 && (
+            <span className="text-muted-foreground ml-auto text-xs tabular-nums">{trashCount}</span>
+          )}
+        </Button>
+
+        {canUndo && (
+          <Button variant="ghost" className={rowClass} onClick={onUndo}>
+            <Undo2 /> Undo delete
+          </Button>
+        )}
       </div>
 
-      <ScrollArea className="min-h-0 flex-1 px-3 pb-3">
+      <div className="text-muted-foreground flex items-center justify-between px-4 pt-3 pb-1.5 text-xs font-medium">
+        <span>Notes</span>
+        <span className="tabular-nums" aria-live="polite">
+          {count}
+        </span>
+      </div>
+
+      <ScrollArea className="min-h-0 flex-1 px-2 pb-3">
         {notes === null ? null : notes.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-2 py-10 text-center text-sm">
             <FileText className="size-8 opacity-40" />
             {query ? 'No notes match that search.' : 'No notes yet.'}
           </div>
         ) : (
-          <ul className="space-y-1">
-            {notes.map((note) => (
-              <li key={note.id}>
-                <button
-                  onClick={() => onSelect(note)}
-                  className={cn(
-                    'hover:bg-accent focus-visible:ring-ring/50 w-full rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]',
-                    note.id === selectedId && 'bg-background border-border shadow-xs'
+          <ul className="flex flex-col gap-0.5">
+            {notes.map((note) => {
+              const selected = note.id === selectedId;
+              const name = note.title || 'Untitled';
+              return (
+                <li key={note.id} className="group/row relative">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(note)}
+                    aria-current={selected ? 'true' : undefined}
+                    title={`${name} · edited ${relativeTime(note.updated_at)}`}
+                    className={cn(
+                      'text-foreground/80 hover:bg-accent hover:text-foreground focus-visible:ring-ring/50 flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm transition-colors outline-none focus-visible:ring-[3px] pointer-coarse:h-11',
+                      selected && 'bg-sidebar-active text-foreground hover:bg-sidebar-active pr-9 font-medium pointer-coarse:pr-12'
+                    )}
+                  >
+                    <FileText className="text-muted-foreground size-4 shrink-0" />
+                    <span className="truncate">{name}</span>
+                  </button>
+                  {/* Only the open note can be deleted, so the bin always
+                      belongs to the note on screen and a stray click on
+                      another row cannot throw away something you are not
+                      looking at. */}
+                  {selected && (
+                    <DeleteNoteDialog title={name} onConfirm={() => onDelete(note)}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete “${name}”`}
+                        title="Delete note"
+                        className="text-muted-foreground hover:text-destructive focus-visible:text-destructive hover:bg-background absolute top-1/2 right-1 size-7 -translate-y-1/2 pointer-coarse:size-10 [&_svg:not([class*='size-'])]:size-3.5"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </DeleteNoteDialog>
                   )}
-                >
-                  <div className="truncate text-sm font-medium">{note.title || 'Untitled'}</div>
-                  {/* An empty line keeps a title-only note the same height as
-                      its neighbours, so the list does not jump. */}
-                  <div className="text-muted-foreground mt-0.5 min-h-4 truncate text-xs">
-                    {excerpt(note.content, note.title)}
-                  </div>
-                  {/* Full strength: at 11px the faded grey fell under 4.5:1. */}
-                  <div className="text-muted-foreground mt-1.5 text-xs">
-                    {relativeTime(note.updated_at)}
-                  </div>
-                </button>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </ScrollArea>
-
-      <Separator />
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
-        <span className="text-muted-foreground pl-1 text-xs">
-          {notes !== null &&
-            (query
-              ? `${notes.length} ${notes.length === 1 ? 'match' : 'matches'}`
-              : `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`)}
-        </span>
-        <div className="flex items-center gap-1">
-          {canUndo && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={onUndo} aria-label="Undo delete">
-                  <Undo2 />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Undo delete</TooltipContent>
-            </Tooltip>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenTrash}
-                aria-label="Open the trash"
-                className="text-muted-foreground gap-1.5"
-              >
-                <Trash2 />
-                {trashCount > 0 && (
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[11px]">
-                    {trashCount}
-                  </Badge>
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Trash</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
     </aside>
   );
 }

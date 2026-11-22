@@ -1,3 +1,5 @@
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+
 // Editing a block, kept apart from both the menu that offers it and the
 // pointer handling that opens the menu. Working out which block sits under a
 // pointer needs layout, which jsdom does not have; working out what to do with
@@ -13,6 +15,18 @@ export function blockRangeAt(doc, pos) {
   const node = doc.nodeAt(from);
   if (!node) return null;
   return { from, to: from + node.nodeSize, node };
+}
+
+// Where the selection goes so that an action lands on this block. A cursor
+// inside it, when it holds text. A divider or an image holds none, and a cursor
+// placed "near" one lands in the next block - which is how Delete on a divider
+// came to delete the paragraph under it. Those are selected whole instead.
+export function selectBlock(doc, range) {
+  if (!range) return null;
+  if (range.node.isAtom && NodeSelection.isSelectable(range.node)) {
+    return NodeSelection.create(doc, range.from);
+  }
+  return TextSelection.near(doc.resolve(range.from + 1));
 }
 
 export function deleteBlock(state, dispatch, range) {

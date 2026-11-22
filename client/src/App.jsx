@@ -4,7 +4,6 @@ import { createAutosave } from '@/lib/autosave';
 import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { editable, savePayload } from '@/lib/notePayload';
 import { deriveTitle } from '@/lib/noteText';
@@ -205,10 +204,18 @@ export default function App() {
     refresh(query);
   };
 
+  // Any note can be deleted from its row in the sidebar, not only the open
+  // one. Deleting the open note lands what is still being typed first, so the
+  // copy in the trash - and the one undo brings back - is the latest.
   const remove = async (id) => {
+    const isOpen = noteRef.current?.id === id;
     try {
+      if (isOpen) {
+        syncFromEditor();
+        await autosave.flush();
+      }
       await deleteNote(id);
-      setNote(null);
+      if (isOpen) setNote(null);
       setDeleted((d) => [...d, id]);
       await Promise.all([refresh(query), refreshTrash()]);
       toast.success('Moved to trash', {
@@ -272,6 +279,7 @@ export default function App() {
         selectedId={note?.id}
         onSelect={openNote}
         onNew={startNew}
+        onDelete={(n) => remove(n.id)}
         query={query}
         onQuery={setQuery}
         trashCount={trash.length}
@@ -280,33 +288,32 @@ export default function App() {
         onUndo={undoLastDelete}
       />
 
+      {/* The note is the page, not a card laid on it: the sidebar's tint and
+          one line between them are all the separation it needs. */}
       <main
         className={cn(
-          'min-h-0 flex-1 flex-col p-2 sm:p-4 md:flex md:p-6',
+          'bg-card min-h-0 min-w-0 flex-1 flex-col md:flex',
           note ? 'flex' : 'hidden'
         )}
       >
-        <Card className="flex min-h-0 flex-1 flex-col gap-0 p-3 sm:p-5">
-          {note ? (
-            <NotePane
-              note={note}
-              status={status}
-              onChange={(next) => {
-                setNote(next);
-                setStatus('editing');
-                noteRef.current = next;
-                autosave.schedule(next);
-              }}
-              onDelete={remove}
-              onBack={() => openNote(null)}
-              onReady={(api) => {
-                editor.current = api;
-              }}
-            />
-          ) : (
-            <EmptyState onNew={startNew} />
-          )}
-        </Card>
+        {note ? (
+          <NotePane
+            note={note}
+            status={status}
+            onChange={(next) => {
+              setNote(next);
+              setStatus('editing');
+              noteRef.current = next;
+              autosave.schedule(next);
+            }}
+            onBack={() => openNote(null)}
+            onReady={(api) => {
+              editor.current = api;
+            }}
+          />
+        ) : (
+          <EmptyState onNew={startNew} />
+        )}
       </main>
 
       <TrashDialog

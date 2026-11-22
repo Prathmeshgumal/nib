@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -12,70 +14,76 @@
    * reach about 82px left of the text; any less and the editor's own scroll
    * box clipped the plus off its edge. */
   --nib-gutter: 5.25rem;
-  /* The one colour in the editor that is nib's rather than the interface's.
-   * It marks where a dragged block will land, so it has to be the thing your
-   * eye goes to - a hairline grey cannot do that job. It is the same blue as
-   * `--primary`, named separately because it means "here", not "act". */
-  --nib-accent: #2383e2;
-  /* The palette is Notion's, because that is the look this editor was asked
-   * for and a near-black page with a blue cast is not it. The greys are warm -
-   * they carry a little of the text's own hue rather than being neutral - and
-   * the one saturated colour is the blue that marks actions and drop targets.
-   * Every one of these is a real value from Notion's own interface. */
-  --radius: 0.375rem;
+  /* The blue in the editor that marks "here": where a dragged block will land
+   * and what is selected. Links and finished to-dos use the same blue, so it
+   * is the one colour on the page that means something. */
+  --nib-accent: #2563eb;
+  /* A finished to-do: a filled blue circle with a white tick. */
+  --nib-done: #2563eb;
+  /* The dot beside "Saved", and the one beside "Editing". */
+  --nib-ok: #16a34a;
+  --nib-pending: #d97706;
+  /* shadcn's zinc palette: neutral greys with no warm or blue cast, so the one
+   * blue above is the only colour on the screen. */
+  --radius: 0.625rem;
   --background: #ffffff;
-  --foreground: #37352f;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #37352f;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #37352f;
-  /* A shade under Notion's own blue: white on #2383e2 is 3.9:1, short of the
-   * 4.5:1 that a button's label needs. This is 5.1:1. */
-  --primary: #1f6fc5;
-  --primary-foreground: #ffffff;
-  /* Blue as text - links, the lit-up toolbar buttons. */
-  --link: #1f6fc5;
-  --secondary: #f1f0ee;
-  --secondary-foreground: #37352f;
-  --muted: #f7f6f3;
-  --muted-foreground: #787066;
-  --accent: #efefee;
-  --accent-foreground: #37352f;
-  /* 4.9:1 on white, so "Delete" reads as text and not only as a colour. */
-  --destructive: #cf3a3a;
+  --popover-foreground: #09090b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  /* Blue as text - links in a note. 6.7:1 on white. */
+  --link: #1d4ed8;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  /* A shade under zinc-500, which is 4.4:1 on the muted grey; this is 5.2:1. */
+  --muted-foreground: #66666e;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   /* Borders that only separate surfaces stay quiet; the ones around a field
    * you type into have to be visible (3:1), or the field has no edge. */
-  --border: #dcdbd8;
-  --input: #8f8d88;
-  --ring: #2383e2;
+  --border: #e4e4e7;
+  --input: #8a8a93;
+  --ring: #2563eb;
+  /* The sidebar is a shade off the page, so the two read as separate panels
+   * without a heavy line between them. */
+  --sidebar: #fafafa;
+  --sidebar-active: #ececef;
 }
 
 .dark {
-  --background: #191919;
-  --foreground: #d4d4d4;
-  /* The note's own surface, a shade off the page so the pane has an edge
-   * without needing a heavy border to draw one. */
-  --card: #1f1f1f;
-  --card-foreground: #d4d4d4;
-  --popover: #252525;
-  --popover-foreground: #d4d4d4;
-  --primary: #1f6fc5;
-  --primary-foreground: #ffffff;
-  --link: #4a9eed;
-  --secondary: #2f2f2f;
-  --secondary-foreground: #d4d4d4;
-  --muted: #252525;
-  --muted-foreground: #9b9b9b;
-  --accent: #2f2f2f;
-  --accent-foreground: #ffffff;
-  --destructive: #eb5757;
-  /* White on this red is 3.5:1; the page's own near-black is 5:1. */
-  --destructive-foreground: #191919;
-  --border: #3a3a3a;
-  --input: #6b6b6b;
-  --ring: #4a9eed;
-  --nib-accent: #2383e2;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #09090b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --link: #60a5fa;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #ef4444;
+  /* White on this red is 3.8:1; the page's own near-black is 5.3:1. */
+  --destructive-foreground: #09090b;
+  --border: #27272a;
+  --input: #6b6b75;
+  --ring: #3b82f6;
+  --nib-accent: #3b82f6;
+  --nib-done: #3b82f6;
+  --nib-ok: #22c55e;
+  --nib-pending: #f59e0b;
+  --sidebar: #111113;
+  --sidebar-active: #27272a;
 }
 
 @media (max-width: 640px) {
@@ -105,6 +113,15 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-link: var(--link);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-done: var(--nib-done);
+  --color-ok: var(--nib-ok);
+  --color-pending: var(--nib-pending);
+  /* Geist, bundled with the app rather than fetched, so nib looks the same
+   * with no network. */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearOfBar, labelBlockHandle } from './editorChrome';
+import { clearOfBar, labelBlockHandle, besideSelection } from './editorChrome';
 import { TOP_BAR_LABELS, buildTopBar, labelTopBar } from './topBar';
 
 const boxed = (rect, top = '0px') => {
@@ -21,6 +21,36 @@ describe('the bubble over a selection', () => {
     const bubble = boxed({ top: 300, bottom: 344 });
     const bar = boxed({ top: 85, bottom: 130 });
     expect(clearOfBar(bubble, bar, 360)).toBeNull();
+  });
+});
+
+// The box for pasting a link, and the one that previews a link. Crepe places
+// both flush against the text with no gap, so they covered the top of what was
+// selected, and on a note's first line they slid under the top bar.
+describe('the link boxes', () => {
+  // The numbers from the bug: box 107-139, bar ending at 108, text 132-165.
+  const bar = boxed({ top: 52, bottom: 108 });
+
+  it('goes below the text when there is no room above it', () => {
+    const box = boxed({ top: 107, bottom: 139 }, '60px');
+    // Below the selection, with the gap: 165 + 10 = 175.
+    expect(besideSelection(box, bar, 132, 165)).toBe(60 + (175 - 107));
+  });
+
+  it('keeps a gap above the text when there is room', () => {
+    const box = boxed({ top: 268, bottom: 300 }, '200px');
+    // Above it, clear of it: 300 - 10 - 32 = 258.
+    expect(besideSelection(box, bar, 300, 330)).toBe(200 + (258 - 268));
+  });
+
+  it('leaves a box that is already in place alone', () => {
+    const box = boxed({ top: 258, bottom: 290 }, '190px');
+    expect(besideSelection(box, bar, 300, 330)).toBeNull();
+  });
+
+  it('leaves a hidden box alone', () => {
+    const box = boxed({ top: 0, bottom: 0 });
+    expect(besideSelection(box, bar, 300, 330)).toBeNull();
   });
 });
 

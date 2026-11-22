@@ -1,11 +1,10 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import { MENU_GROUPS } from './blockMenuItems';
-import { blockRangeAt } from './blockOps';
+import { blockRangeAt, selectBlock } from './blockOps';
 
 // Re-exported so the menu, the plugin and the tests all name one place.
-export { blockRangeAt, deleteBlock, duplicateBlock, targetRange } from './blockOps';
+export { blockRangeAt, deleteBlock, duplicateBlock, selectBlock, targetRange } from './blockOps';
 
 // Crepe's block handle drags and nothing else: the plus inserts a block below,
 // the dots move the block, and there is no way to change or remove one. Every
@@ -114,12 +113,8 @@ export const blockMenu = $prose((ctx) => {
           // The item acts on whatever the selection is in, so the selection
           // has to be inside the block the dots belong to first.
           const { state } = view;
-          const range = blockRangeAt(state.doc, pos);
-          if (range) {
-            view.dispatch(state.tr.setSelection(
-              TextSelection.near(state.doc.resolve(range.from + 1)),
-            ));
-          }
+          const selection = selectBlock(state.doc, blockRangeAt(state.doc, pos));
+          if (selection) view.dispatch(state.tr.setSelection(selection));
           if (!view.hasFocus()) view.focus();
           item.run(ctx);
         });
