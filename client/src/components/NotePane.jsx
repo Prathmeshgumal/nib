@@ -1,4 +1,5 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PanelLeftOpen } from 'lucide-react';
+import { SIDEBAR_SHORTCUT } from '@/components/NoteList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,7 @@ const DOT = { editing: 'bg-pending', saving: 'bg-muted-foreground animate-pulse'
 // They used to be laid over the toolbar's right-hand end, but the space kept
 // clear for them pushed the toolbar's buttons onto two or three rows at most
 // window widths, which cost more height than the line it was meant to save.
-export default function NotePane({ note, status, onChange, onBack, onReady }) {
+export default function NotePane({ note, status, onChange, onBack, onReady, sidebarOpen = true, onShowSidebar }) {
   // A note that has never reached the server has nothing that is "saved" yet.
   const saved = Boolean(note.id);
   useMinuteTick();
@@ -26,7 +27,8 @@ export default function NotePane({ note, status, onChange, onBack, onReady }) {
   // A note saved without a title is called by its first line, in the list and
   // here alike. Shown as the placeholder, the title line says what the list
   // says while the first line is still being typed, instead of "Untitled".
-  const placeholder = deriveTitle('', note.content) || 'Untitled';
+  const derived = deriveTitle('', note.content);
+  const placeholder = derived || 'Untitled';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -41,11 +43,32 @@ export default function NotePane({ note, status, onChange, onBack, onReady }) {
           <ArrowLeft />
         </Button>
 
+        {/* With the sidebar put away, this is the way back to it. */}
+        {!sidebarOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            data-sidebar-open
+            className="hidden size-8 shrink-0 md:inline-flex"
+            aria-label="Show sidebar"
+            title={`Show sidebar (${SIDEBAR_SHORTCUT})`}
+            onClick={onShowSidebar}
+          >
+            <PanelLeftOpen />
+          </Button>
+        )}
+
         <Input
           value={note.title}
           placeholder={placeholder}
           aria-label="Note title"
-          className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus-visible:ring-0 md:text-[15px] dark:bg-transparent"
+          // A title taken from the first line is the note's name all the
+          // same, so it is set in the same ink as a typed one. Grey made a
+          // saved note look as if it had no name at all.
+          className={cn(
+            'h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus-visible:ring-0 md:text-[15px] dark:bg-transparent',
+            derived && 'placeholder:text-foreground'
+          )}
           onChange={(e) => onChange({ ...note, title: e.target.value, titleEdited: true })}
         />
 

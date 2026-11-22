@@ -19,7 +19,22 @@ import {
   updateNote,
 } from '@/lib/api';
 
-const blankNote = () => ({ id: null, title: '', content: '', updated_at: null, titleEdited: false });
+// `session` names one sitting with a note, and is what the editor is built
+// for. It cannot be the id: a new note has none until its first save hands one
+// back, and an editor keyed on the id was torn down and rebuilt at that moment
+// - taking the cursor with it, a second into the first sentence.
+let sessions = 0;
+const SIDEBAR_KEY = 'nib-sidebar';
+
+const blankNote = () => ({
+  id: null,
+  title: '',
+  content: '',
+  updated_at: null,
+  titleEdited: false,
+  session: `new-${++sessions}`,
+});
+const opened = (note) => (note ? { ...editable(note), session: `note-${note.id}-${++sessions}` } : note);
 
 export default function App() {
   // null until the first answer arrives, so the list does not flash "No notes
@@ -32,8 +47,32 @@ export default function App() {
   const [status, setStatus] = useState('saved'); // 'saved' | 'editing' | 'saving'
   const [trash, setTrash] = useState([]);
   const [trashOpen, setTrashOpen] = useState(false);
-  // Ids of deletes, newest last, so undo can walk back through them.
-  const [deleted, setDeleted] = useState([]);
+  // The sidebar can be put away for room to write, on anything wider than a
+  // phone (where it is already one screen and the note another). Where it was
+  // left is remembered, as a per-browser preference.
+  const [sidebarOpen, setSidebarOpenState] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) !== 'closed';
+    } catch {
+      return true;
+    }
+  });
+  const setSidebarOpen = useCallback((open) => {
+    setSidebarOpenState(open);
+    try {
+      localStorage.setItem(SIDEBAR_KEY, open ? 'open' : 'closed');
+    } catch {
+      // A private window can refuse storage; the sidebar still toggles.
+    }
+    // The button just pressed has gone, so focus goes to the one that does
+    // the opposite - otherwise it falls back to the page and a keyboard user
+    // starts again from the top.
+    requestAnimationFrame(() => {
+      document.querySelector(open ? '[data-sidebar-close]' : '[data-sidebar-open]')?.focus();
+    });
+  }, []);
+  const sidebarRef = useRef(sidebarOpen);
+  sidebarRef.current = sidebarOpen;
 
   const refresh = useCallback(async (q) => {
     try {
@@ -69,7 +108,7 @@ export default function App() {
   // Every tab said "Notes", which is no help with two or three of them open.
   useEffect(() => {
     // A title nobody chose is the first line, as it is in the list.
-    document.title = note ? `${deriveTitle(note.title, note.content) || 'Untitled'} · Notes` : 'Notes';
+    document.title = note ? `${deriveTitle(note.title, note.content) || 'Untitled'} · nib` : 'nib';
   }, [note]);
 
   const startNew = () => {
@@ -80,6 +119,8 @@ export default function App() {
   // The latest note, readable from a timer that fired before the last render.
   const noteRef = useRef(null);
   noteRef.current = note;
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   const write = useCallback(async ({ quiet }) => {
     const current = noteRef.current;
@@ -94,14 +135,17 @@ export default function App() {
       setStatus('saved');
       // Keep the id a create just handed back, but not a stale body: the
       // note may have been typed into while the request was in flight.
-      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : editable(saved)));
+      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : opened(saved)));
+      // A note that has just been created is not in the list yet. Every other
+      // save leaves the list alone - see the note on refreshing above.
+      if (!current.id) refresh(queryRef.current);
       if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
       return saved;
     } catch (e) {
       setStatus('editing');
       toast.error('Save failed', { description: e.message });
     }
-  }, []);
+  }, [refresh]);
 
   const autosave = useMemo(
     () => createAutosave({ delay: 800, save: () => write({ quiet: true }) }),
@@ -175,6 +219,9 @@ export default function App() {
   const onEscape = useRef(null);
   onEscape.current = stepOut;
 
+  const onToggleSidebar = useRef(null);
+  onToggleSidebar.current = () => setSidebarOpen(!sidebarRef.current);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
@@ -182,6 +229,12 @@ export default function App() {
         return;
       }
       const mod = e.ctrlKey || e.metaKey;
+      // Ctrl+\ (⌘\ on a Mac) shows and hides the sidebar, as in Notion.
+      if (mod && !e.shiftKey && !e.altKey && e.key === '\\') {
+        e.preventDefault();
+        onToggleSidebar.current?.();
+        return;
+      }
       if (!mod || e.shiftKey || e.key.toLowerCase() !== 's') return;
       e.preventDefault();
       onSaveKey.current?.();
@@ -197,7 +250,7 @@ export default function App() {
     // in the editor's own debounce belongs to the note being left, too.
     syncFromEditor();
     await autosave.flush();
-    setNote(editable(next));
+    setNote(opened(next));
     setStatus('saved');
     // Now that the note being written has been left, the list can catch up
     // with what the writing did to it.
@@ -216,7 +269,6 @@ export default function App() {
       }
       await deleteNote(id);
       if (isOpen) setNote(null);
-      setDeleted((d) => [...d, id]);
       await Promise.all([refresh(query), refreshTrash()]);
       toast.success('Moved to trash', {
         action: { label: 'Undo', onClick: () => restore(id) },
@@ -226,32 +278,24 @@ export default function App() {
     }
   };
 
-  // Restoring is shared by the undo action and the trash dialog.
+  // Restoring is shared by the undo action and the trash dialog. The note
+  // comes back open, so the trash closes to show it rather than sitting in
+  // front of it.
   const restore = async (id) => {
     try {
       const restored = await restoreNote(id);
-      setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
-      setNote(editable(restored));
+      setTrashOpen(false);
+      setNote(opened(restored));
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });
     }
   };
 
-  const undoLastDelete = async () => {
-    const id = deleted[deleted.length - 1];
-    if (!id) {
-      toast('Nothing to undo');
-      return;
-    }
-    await restore(id);
-  };
-
   const purge = async (note) => {
     try {
       await purgeNote(note.id);
-      setDeleted((d) => d.filter((x) => x !== note.id));
       await refreshTrash();
       toast.success('Deleted for good');
     } catch (e) {
@@ -262,7 +306,6 @@ export default function App() {
   const empty = async () => {
     try {
       const { deleted: n } = await emptyTrash();
-      setDeleted([]); // those ids are gone; undo has nothing to return to
       await refreshTrash();
       toast.success(`Emptied the trash (${n} ${n === 1 ? 'note' : 'notes'})`);
     } catch (e) {
@@ -274,7 +317,10 @@ export default function App() {
     <div className="flex h-svh flex-col md:flex-row">
       <NoteList
         // On a phone there is room for the list or the note, not both.
-        className={note ? 'hidden md:flex' : undefined}
+        // Wider than that, it is there unless it has been put away.
+        className={cn(note && 'hidden', sidebarOpen ? 'md:flex' : 'md:hidden')}
+        onHide={() => setSidebarOpen(false)}
+        onShow={() => setSidebarOpen(true)}
         notes={notes}
         selectedId={note?.id}
         onSelect={openNote}
@@ -284,8 +330,6 @@ export default function App() {
         onQuery={setQuery}
         trashCount={trash.length}
         onOpenTrash={() => setTrashOpen(true)}
-        canUndo={deleted.length > 0}
-        onUndo={undoLastDelete}
       />
 
       {/* The note is the page, not a card laid on it: the sidebar's tint and
@@ -307,12 +351,18 @@ export default function App() {
               autosave.schedule(next);
             }}
             onBack={() => openNote(null)}
+            sidebarOpen={sidebarOpen}
+            onShowSidebar={() => setSidebarOpen(true)}
             onReady={(api) => {
               editor.current = api;
             }}
           />
         ) : (
-          <EmptyState onNew={startNew} />
+          <EmptyState
+            onNew={startNew}
+            sidebarOpen={sidebarOpen}
+            onShowSidebar={() => setSidebarOpen(true)}
+          />
         )}
       </main>
 

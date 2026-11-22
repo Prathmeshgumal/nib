@@ -1,4 +1,5 @@
 import { Crepe } from '@milkdown/crepe';
+import { toast } from 'sonner';
 import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
@@ -10,6 +11,8 @@ import { blockMenu } from './blockMenu';
 import { buildTopBar } from './topBar';
 import { editorChrome } from './editorChrome';
 import { taskCheckedIcon, taskUncheckedIcon } from './taskIcons';
+import { languageLabel, languages } from './languages';
+import { taskToggle } from './taskToggle';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -117,6 +120,18 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
         checkBoxCheckedIcon: taskCheckedIcon,
         checkBoxUncheckedIcon: taskUncheckedIcon,
       },
+      // Copying a link from its preview gave no sign that anything happened.
+      [Crepe.Feature.LinkTooltip]: {
+        onCopyLink: () => toast.success('Link copied'),
+      },
+      // The stub behind @codemirror/language-data is empty, so without a
+      // list of its own the language picker opened onto "No result".
+      [Crepe.Feature.CodeMirror]: {
+        languages,
+        renderLanguage: (name) => languageLabel(name),
+        searchPlaceholder: 'Find a language',
+        noResultText: 'No language by that name',
+      },
       // Crepe's own is "Please enter...", which reads like a form field.
       [Crepe.Feature.Placeholder]: { text: 'Start writing, or type / for blocks' },
     },
@@ -136,6 +151,7 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     .use(imageResize)
     .use(emptyTaskPlugin)
     .use(blockMenu)
+    .use(taskToggle)
     .use(editorChrome);
   return crepe;
 }

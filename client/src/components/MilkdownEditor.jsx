@@ -83,6 +83,11 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
         } catch {
           // Leave the note's own text as the yardstick.
         }
+        // A note that has just been started is there to be written in, so the
+        // cursor goes straight into it instead of staying on "New note".
+        if (!latest.current.note.id && !latest.current.note.content) {
+          root.querySelector('.ProseMirror')?.focus();
+        }
         // What the app gets is not the editor but one question it can ask:
         // "is there anything you have not told me yet?" Keeping the yardstick
         // in here is what stops every caller having to know that parsing
@@ -125,9 +130,13 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
       }
       crepe?.destroy();
     };
-    // Deliberately not note.content: see the note above about the cursor.
+    // Deliberately not note.content: see the note above about the cursor. And
+    // not the id either: a new note gets one from its first save, and
+    // rebuilding then threw the cursor away mid-sentence. `session` is one
+    // sitting with one note (see App.jsx); the id is the fallback for callers
+    // that do not set it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note.id]);
+  }, [note.session ?? note.id]);
 
   return <div ref={host} className="nib-editor min-h-0 flex-1 overflow-y-auto" />;
 }

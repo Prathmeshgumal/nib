@@ -1,6 +1,16 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { labelTopBar } from './topBar';
+import {
+  belowLink,
+  copyCode,
+  labelCodeBlocks,
+  labelImages,
+  labelLinkPreview,
+  labelTables,
+  markOverflow,
+  openLink,
+} from './chromeExtras';
 
 // Everything Crepe draws around the writing but leaves unnamed or misplaced:
 // the bar at the top, the bubble over a selection, and the plus and dots
@@ -69,6 +79,36 @@ export const editorChrome = $prose(() => new Plugin({
   key: editorChromeKey,
   view: (view) => {
     let frame = 0;
+    let root = null;
+    const watchedStrips = new WeakSet();
+
+    // Clicks Crepe gets wrong, caught on the way down before its own handlers.
+    const onClick = (e) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target) return;
+
+      // The code block's Copy said nothing either way, and dropped the copy
+      // when the browser refused the clipboard. nib copies it, and says so.
+      const copy = target.closest('.milkdown-code-block .copy-button');
+      if (copy) {
+        e.preventDefault();
+        e.stopPropagation();
+        copyCode(view, copy);
+        return;
+      }
+
+      // The address in the link preview, and Ctrl/⌘-click on a link in the
+      // text: both open it in a new tab, with a bare "example.com" taken as
+      // the website it was meant as.
+      const shown = target.closest('.milkdown-link-preview .link-display');
+      const inText = (e.ctrlKey || e.metaKey) && view.dom.contains(target) ? target.closest('a[href]') : null;
+      const link = shown ?? inText;
+      if (link) {
+        e.preventDefault();
+        e.stopPropagation();
+        openLink(link.getAttribute('href'));
+      }
+    };
 
     const sync = () => {
       frame = 0;
@@ -77,6 +117,25 @@ export const editorChrome = $prose(() => new Plugin({
       const bar = root.querySelector('.milkdown-top-bar');
       if (bar) labelTopBar(bar);
       labelBlockHandle(root.querySelector('.milkdown-block-handle'));
+      labelLinkPreview(root);
+      labelTables(root);
+      labelCodeBlocks(root);
+      labelImages(root);
+
+      const strip = bar?.querySelector('.top-bar-inner');
+      if (strip && !watchedStrips.has(strip)) {
+        watchedStrips.add(strip);
+        strip.addEventListener('scroll', () => markOverflow(strip), { passive: true });
+      }
+      markOverflow(strip);
+
+      // The preview hangs off whichever link is under the pointer.
+      const preview = root.querySelector('.milkdown-link-preview');
+      if (preview?.dataset.show === 'true') {
+        const link = view.dom.querySelector('a:hover');
+        const top = belowLink(preview, link?.getBoundingClientRect());
+        if (top !== null) preview.style.top = `${top}px`;
+      }
 
       let from;
       let to;
@@ -93,8 +152,7 @@ export const editorChrome = $prose(() => new Plugin({
         if (top !== null) bubble.style.top = `${top}px`;
       }
 
-      // Only the box for pasting a link hangs off the selection. The preview
-      // hangs off whichever link is under the pointer, which Crepe places.
+      // The box for pasting a link hangs off the selection.
       const linkEdit = root.querySelector('.milkdown-link-edit');
       if (linkEdit?.dataset.show === 'true') {
         const top = besideSelection(linkEdit, bar, Math.min(from.top, to.top), Math.max(from.bottom, to.bottom));
@@ -115,12 +173,15 @@ export const editorChrome = $prose(() => new Plugin({
 
     // The root is not there until the editor has been placed in the page.
     const start = () => {
-      const root = view.dom.closest('.milkdown');
+      root = view.dom.closest('.milkdown');
       if (!root) {
         frame = requestAnimationFrame(start);
         return;
       }
       frame = 0;
+      root.addEventListener('click', onClick, true);
+      // A narrower window (or a phone turned) changes what fits on the bar.
+      window.addEventListener('resize', schedule);
       observer.observe(root, {
         subtree: true,
         childList: true,
@@ -134,6 +195,8 @@ export const editorChrome = $prose(() => new Plugin({
     return {
       update: schedule,
       destroy: () => {
+        root?.removeEventListener('click', onClick, true);
+        window.removeEventListener('resize', schedule);
         observer.disconnect();
         cancelAnimationFrame(frame);
       },
