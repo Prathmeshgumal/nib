@@ -15,6 +15,7 @@ import { taskCheckedIcon, taskUncheckedIcon } from './taskIcons';
 import { languageLabel, languages } from './languages';
 import { taskToggle } from './taskToggle';
 import { copyPaths } from './copyPaths';
+import { inlineUpload } from './inlineUpload';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -148,6 +149,7 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       // and then holds - see the idempotency test.
       ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
       copyPaths(ctx);
+      if (onUpload) inlineUpload(ctx, onUpload);
     })
     .use(imageFixes)
     .use(attachment)
