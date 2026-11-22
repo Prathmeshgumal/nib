@@ -13,6 +13,7 @@ import { editorChrome } from './editorChrome';
 import { taskCheckedIcon, taskUncheckedIcon } from './taskIcons';
 import { languageLabel, languages } from './languages';
 import { taskToggle } from './taskToggle';
+import { copyPaths } from './copyPaths';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -145,6 +146,7 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       // editing, and an aligned table is easier to read there. It happens once
       // and then holds - see the idempotency test.
       ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: true });
+      copyPaths(ctx);
     })
     .use(imageFixes)
     .use(attachment)
