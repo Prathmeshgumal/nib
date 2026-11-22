@@ -545,3 +545,166 @@
 .nib-block-menu-item.danger .nib-block-menu-icon {
   color: var(--destructive);
 }
+
+/* --- Code block controls ------------------------------------------------ */
+
+/* The language picker is a button that opens a list, so it looks like one:
+ * an edge and a chevron, not a grey word that could be a label. */
+.milkdown .milkdown-code-block .tools .language-button {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-weight: 500;
+  padding: 2px 4px 2px 8px;
+}
+.milkdown .milkdown-code-block .tools .language-button:hover {
+  background: var(--accent);
+}
+
+/* The list it opens: a menu like every other menu in nib - an edge, the
+ * popover colour, and only as tall as what is in it. It was a tall grey slab
+ * with no border that ran down over the note. */
+.milkdown .milkdown-code-block .list-wrapper {
+  z-index: 20;
+  width: 13rem;
+  padding: 6px 0 4px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--crepe-shadow-2);
+}
+.milkdown .milkdown-code-block .language-list {
+  height: auto;
+  max-height: min(18rem, 50vh);
+  padding: 0 4px;
+}
+.milkdown .milkdown-code-block .language-list-item {
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  font-weight: 400;
+}
+.milkdown .milkdown-code-block .language-list-item[aria-selected='true'] {
+  font-weight: 600;
+}
+.milkdown .milkdown-code-block .search-box {
+  margin: 0 6px 6px;
+  outline: 1px solid var(--border);
+}
+.milkdown .milkdown-code-block .search-box:has(input:focus) {
+  outline: 2px solid var(--ring);
+}
+
+/* Copy says what happened, on the button, for a moment. The words come from
+ * here so Vue's own rendering of the button is never disturbed. */
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied] {
+  opacity: 1;
+  font-size: 0;
+  gap: 0;
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied] > * {
+  display: none;
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied]::before {
+  font-size: 12px;
+  line-height: 16px;
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied='yes'] {
+  background: color-mix(in srgb, var(--nib-ok) 14%, transparent);
+  color: var(--nib-ok);
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied='yes']::before {
+  content: '✓ Copied';
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied='no'] {
+  color: var(--destructive);
+}
+.milkdown .milkdown-code-block .tools .tools-button-group .copy-button[data-copied='no']::before {
+  content: "Couldn't copy";
+}
+
+/* The language and Copy only appeared under a hovering mouse, so on a phone a
+ * code block had neither. Without hover they are always there, and with a
+ * keyboard they show while the block has focus. */
+@media (hover: none) {
+  .milkdown .milkdown-code-block .tools .language-button,
+  .milkdown .milkdown-code-block .tools .tools-button-group > button {
+    opacity: 1;
+  }
+}
+.milkdown .milkdown-code-block:focus-within .tools .language-button,
+.milkdown .milkdown-code-block:focus-within .tools .tools-button-group > button {
+  opacity: 1;
+}
+
+/* --- An image waiting for a file ---------------------------------------- */
+
+/* Just inserted, the block is selected, and Crepe paints a selected block in
+ * the selected-text blue - so an empty image looked like highlighted text
+ * with no edge. It is a dashed drop zone instead, with a ring when selected. */
+.milkdown .milkdown-image-block > .image-edit {
+  background: var(--muted);
+  border: 1px dashed var(--input);
+  border-radius: var(--radius);
+}
+.milkdown .milkdown-image-block.selected > .image-edit:not(:has(input:focus))::before {
+  display: none;
+}
+.milkdown .milkdown-image-block.selected > .image-edit {
+  border-style: solid;
+  border-color: var(--ring);
+}
+.milkdown .milkdown-image-block > .image-edit .link-importer .placeholder .uploader {
+  color: var(--link);
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+/* The handles that select a row or a column were 16px slivers. */
+.milkdown .milkdown-table-block .cell-handle {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+}
+.milkdown .milkdown-table-block .cell-handle[data-role='col-drag-handle'] {
+  width: 36px;
+  height: 20px;
+}
+.milkdown .milkdown-table-block .cell-handle[data-role='row-drag-handle'] {
+  width: 20px;
+  height: 36px;
+}
+.milkdown .milkdown-table-block .cell-handle:hover {
+  background: var(--accent);
+}
+.milkdown .milkdown-table-block .cell-handle .button-group {
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--crepe-shadow-2);
+}
+
+/* --- Links ---------------------------------------------------------------- */
+
+.milkdown .milkdown-link-preview .link-display {
+  cursor: pointer;
+}
+.milkdown .milkdown-link-preview .link-display:hover {
+  text-decoration: underline;
+}
+
+/* --- The phone toolbar ---------------------------------------------------- */
+
+/* Whichever end has more buttons past it fades out, so the bar reads as one
+ * that scrolls rather than one that ends. */
+@media (max-width: 640px) {
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-inner[data-more='right'] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+  }
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-inner[data-more='left'] {
+    mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+  }
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-inner[data-more='left right'] {
+    mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  }
+}

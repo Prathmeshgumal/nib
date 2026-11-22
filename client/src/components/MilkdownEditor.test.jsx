@@ -164,6 +164,23 @@ describe('the editor is not rebuilt while you type', () => {
     expect(onReady).toHaveBeenCalledTimes(1);
     await act(async () => root.unmount());
   });
+
+  it('survives a new note getting its id from the first save', async () => {
+    // The first save of a new note is about a second into its first
+    // sentence. Rebuilding then dropped the cursor, and what was typed next
+    // went nowhere.
+    const m = await mount({ note: { ...note(null, ''), session: 'new-1' } });
+    const first = m.crepe;
+    await m.rerender({ note: { ...note('fresh', 'Typed'), session: 'new-1' } });
+    expect(m.crepe).toBe(first);
+    await m.unmount();
+  });
+
+  it('puts the cursor in a new, empty note', async () => {
+    const m = await mount({ note: { ...note(null, ''), session: 'new-2' } });
+    expect(document.activeElement?.classList.contains('ProseMirror')).toBe(true);
+    await m.unmount();
+  });
 });
 
 describe('opening a note and leaving it', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FileText, Plus, Search, Trash2, Undo2, X } from 'lucide-react';
+import { FileText, PanelLeftClose, Plus, Search, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 // ⌘ on a Mac, Ctrl everywhere else - the hint has to name the key that works.
 const isMac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl';
+export const SIDEBAR_SHORTCUT = isMac ? '⌘\\' : 'Ctrl+\\';
 
 // One row of the sidebar's actions: icon, words, and anything on the right.
 const rowClass =
@@ -33,22 +34,48 @@ export default function NoteList({
   onQuery,
   trashCount,
   onOpenTrash,
-  canUndo,
-  onUndo,
+  onHide,
+  onShow,
   className,
 }) {
   useMinuteTick();
   const search = useRef(null);
+  const list = useRef(null);
+
+  // Up and down move between notes, and up from the first goes back to the
+  // search, the way a list of results does everywhere else.
+  const onRowKey = (e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const rows = [...(list.current?.querySelectorAll('[data-note-row]') ?? [])];
+    const at = rows.indexOf(e.currentTarget);
+    if (at < 0) return;
+    e.preventDefault();
+    const next = e.key === 'ArrowDown' ? rows[at + 1] : rows[at - 1];
+    if (next) next.focus();
+    else if (e.key === 'ArrowUp') search.current?.focus();
+  };
 
   // Ctrl+K / ⌘K jumps to the search, from anywhere - the shortcut the hint in
-  // the field promises.
+  // the field promises. A put-away sidebar comes back for it first: a hidden
+  // field cannot take focus.
+  const showRef = useRef(onShow);
+  showRef.current = onShow;
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
       if (e.key.toLowerCase() !== 'k') return;
       e.preventDefault();
-      search.current?.focus();
-      search.current?.select();
+      const focus = () => {
+        search.current?.focus();
+        search.current?.select();
+      };
+      if (search.current && search.current.offsetParent === null) {
+        showRef.current?.();
+        // After the sidebar's own focus hand-off, which also waits a frame.
+        requestAnimationFrame(() => requestAnimationFrame(focus));
+        return;
+      }
+      focus();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -78,7 +105,21 @@ export default function NoteList({
           </span>
           <h1 className="text-sm font-semibold tracking-tight">nib</h1>
         </div>
-        <ModeToggle />
+        <div className="flex items-center gap-0.5">
+          {/* Not on a phone: there the list is already a screen of its own. */}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            data-sidebar-close
+            className="hidden md:inline-flex"
+            aria-label="Hide sidebar"
+            aria-keyshortcuts={isMac ? 'Meta+\\' : 'Control+\\'}
+            title={`Hide sidebar (${SIDEBAR_SHORTCUT})`}
+            onClick={onHide}
+          >
+            <PanelLeftClose />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-0.5 px-2 pb-2">
@@ -98,6 +139,18 @@ export default function NoteList({
               if (e.key === 'Escape' && query) {
                 e.stopPropagation();
                 onQuery('');
+                return;
+              }
+              // Enter opens the best match, and the down arrow walks into the
+              // results - instead of tabbing past every action on the way.
+              if (e.key === 'Enter' && query && notes?.length) {
+                e.preventDefault();
+                onSelect(notes[0]);
+                return;
+              }
+              if (e.key === 'ArrowDown' && notes?.length) {
+                e.preventDefault();
+                list.current?.querySelector('[data-note-row]')?.focus();
               }
             }}
           />
@@ -126,12 +179,6 @@ export default function NoteList({
             <span className="text-muted-foreground ml-auto text-xs tabular-nums">{trashCount}</span>
           )}
         </Button>
-
-        {canUndo && (
-          <Button variant="ghost" className={rowClass} onClick={onUndo}>
-            <Undo2 /> Undo delete
-          </Button>
-        )}
       </div>
 
       <div className="text-muted-foreground flex items-center justify-between px-4 pt-3 pb-1.5 text-xs font-medium">
@@ -148,7 +195,7 @@ export default function NoteList({
             {query ? 'No notes match that search.' : 'No notes yet.'}
           </div>
         ) : (
-          <ul className="flex flex-col gap-0.5">
+          <ul ref={list} className="flex flex-col gap-0.5">
             {notes.map((note) => {
               const selected = note.id === selectedId;
               const name = note.title || 'Untitled';
@@ -156,7 +203,9 @@ export default function NoteList({
                 <li key={note.id} className="group/row relative">
                   <button
                     type="button"
+                    data-note-row
                     onClick={() => onSelect(note)}
+                    onKeyDown={onRowKey}
                     aria-current={selected ? 'true' : undefined}
                     title={`${name} · edited ${relativeTime(note.updated_at)}`}
                     className={cn(
@@ -190,6 +239,11 @@ export default function NoteList({
           </ul>
         )}
       </ScrollArea>
+
+      {/* Settings-like things live at the foot, away from the notes. */}
+      <div className="border-t px-2 py-2">
+        <ModeToggle className={rowClass} />
+      </div>
     </aside>
   );
 }
