@@ -474,6 +474,9 @@
   min-width: 13rem;
   max-height: min(24rem, 70vh);
   overflow-y: auto;
+  /* Reaching the end of the list must not carry on into the note: that
+   * scroll would close the menu out from under the pointer. */
+  overscroll-behavior: contain;
   padding: 4px;
   display: flex;
   flex-direction: column;

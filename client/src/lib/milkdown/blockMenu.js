@@ -16,6 +16,15 @@ export { blockRangeAt, deleteBlock, duplicateBlock, selectBlock, targetRange } f
 // out what to do with that block does not. Everything below the first function
 // is therefore testable, and is tested.
 
+// Whether a scroll should close the menu. It hangs at a fixed spot on the
+// page, so when the note scrolls it would be left beside the wrong block. But
+// in a short window the menu has a scrollbar of its own, and scrolling through
+// it is reaching for an item, not leaving.
+export function scrollCloses(menu, target) {
+  if (!menu) return false;
+  return !(target instanceof Node && menu.contains(target));
+}
+
 export const blockMenuKey = new PluginKey('nibBlockMenu');
 
 // How far the pointer may wander between press and release and still count as
@@ -218,14 +227,17 @@ export const blockMenu = $prose((ctx) => {
       document.addEventListener('pointerup', onPointerUp, true);
       // Capture, so it runs before the app's own Escape handler on window.
       document.addEventListener('keydown', onKeyDown, true);
-      window.addEventListener('scroll', close, true);
+      const onScroll = (event) => {
+        if (scrollCloses(menu, event.target)) close();
+      };
+      window.addEventListener('scroll', onScroll, true);
 
       return {
         destroy: () => {
           document.removeEventListener('pointerdown', onPointerDown, true);
           document.removeEventListener('pointerup', onPointerUp, true);
           document.removeEventListener('keydown', onKeyDown, true);
-          window.removeEventListener('scroll', close, true);
+          window.removeEventListener('scroll', onScroll, true);
           close();
         },
       };

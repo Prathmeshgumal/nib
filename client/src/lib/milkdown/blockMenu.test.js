@@ -7,6 +7,7 @@ import {
   buildMenu,
   deleteBlock,
   dragHandle,
+  scrollCloses,
   duplicateBlock,
   selectBlock,
   targetRange,
@@ -295,5 +296,28 @@ describe('the menu as it is drawn', () => {
     press('Home');
     expect(document.activeElement).toBe(items[0]);
     menu.remove();
+  });
+});
+
+// The menu hangs at a fixed spot on the page, so scrolling the note would
+// leave it stranded beside the wrong block - but in a short window the menu
+// scrolls too, and that must not close it.
+describe('scrolling with the menu open', () => {
+  const menu = document.createElement('div');
+  const item = document.createElement('button');
+  menu.append(item);
+
+  it('closes it when the note scrolls', () => {
+    expect(scrollCloses(menu, document.createElement('div'))).toBe(true);
+    expect(scrollCloses(menu, document)).toBe(true);
+  });
+
+  it('keeps it open when the menu itself scrolls', () => {
+    expect(scrollCloses(menu, menu)).toBe(false);
+    expect(scrollCloses(menu, item)).toBe(false);
+  });
+
+  it('has nothing to close without a menu', () => {
+    expect(scrollCloses(null, document)).toBe(false);
   });
 });
