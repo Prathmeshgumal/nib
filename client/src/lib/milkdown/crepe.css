@@ -83,8 +83,10 @@
   min-height: 100%;
 }
 
+/* Room above the first line, so the writing does not sit right on the rule
+ * under the toolbar. */
 .nib-editor .milkdown .ProseMirror {
-  padding: 0 0 40vh;
+  padding: 1.5rem 0 40vh;
   min-height: 100%;
 }
 
