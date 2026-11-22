@@ -6,6 +6,12 @@ describe('what a note is called', () => {
     expect(deriveTitle('', 'This is a test&#x20;\n')).toBe('This is a test');
   });
 
+  it('names images in the first line the way a copy does', () => {
+    expect(deriveTitle('', 'Fix ![](attachments/0123456789abcdef.png) like ![a b](https://x.com/y.png "t") now\n')).toBe(
+      'Fix (image 1) like (image 2) now',
+    );
+  });
+
   it('uses the title when there is one', () => {
     expect(deriveTitle('Plans', '# Other')).toBe('Plans');
   });

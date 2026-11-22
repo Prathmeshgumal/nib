@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -340,7 +341,7 @@ func DeriveTitle(title, content string) string {
 	for _, line := range strings.Split(content, "\n") {
 		// A trailing space is saved as "&#x20;" by the web editor; it is not
 		// part of anyone's title.
-		t := strings.TrimSpace(strings.TrimLeft(line, "# "))
+		t := strings.TrimSpace(strings.TrimLeft(nameImages(line), "# "))
 		for strings.HasSuffix(t, "&#x20;") {
 			t = strings.TrimSpace(strings.TrimSuffix(t, "&#x20;"))
 		}
@@ -349,6 +350,18 @@ func DeriveTitle(title, content string) string {
 		}
 	}
 	return "Untitled"
+}
+
+// titleImage is an image in markdown. In a title it is called what a copy
+// from the web app calls it, "(image 1)", rather than shown as markdown.
+var titleImage = regexp.MustCompile(`!\[[^\]]*\]\([^)\s]*(?:\s+"[^"]*")?\)`)
+
+func nameImages(line string) string {
+	n := 0
+	return titleImage.ReplaceAllStringFunc(line, func(string) string {
+		n++
+		return fmt.Sprintf("(image %d)", n)
+	})
 }
 
 func truncate(s string, n int) string {

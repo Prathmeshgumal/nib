@@ -22,6 +22,14 @@ const plainLine = (line) =>
 // The title the store gives a note that was saved without one: its first line
 // with words on it. Mirrors DeriveTitle in internal/store, so the title line
 // shows, while you are still typing, what the list will call the note.
+// An image in the first line is called what a copy calls it - "(image 1)" -
+// rather than shown as its markdown. Mirrors titleImage in internal/store.
+const TITLE_IMAGE = /!\[[^\]]*\]\([^)\s]*(?:\s+"[^"]*")?\)/g;
+const nameImages = (line) => {
+  let n = 0;
+  return line.replace(TITLE_IMAGE, () => `(image ${++n})`);
+};
+
 export function deriveTitle(title, content) {
   const t = (title || '').trim();
   if (t) return t;
@@ -29,7 +37,7 @@ export function deriveTitle(title, content) {
   for (const line of unescapeMarkdown(content || '').split('\n')) {
     // Exactly what the store does - strip leading '#' and spaces, then trim -
     // so the two cannot drift apart.
-    const words = line
+    const words = nameImages(line)
       .trim()
       .replace(/^[#\s]+/, '')
       .replace(/(?:&#x20;)+$/, '')
