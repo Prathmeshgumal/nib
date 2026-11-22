@@ -74,6 +74,18 @@ describe('copying out of the editor', () => {
     expect(text).toContain('and fix it');
   });
 
+  it('copies a line that ends in a space without the space code', async () => {
+    setAttachmentsDir(DIR);
+    expect(await copyAll('Here is the image&#x20;\n\n![](attachments/b441.jpg)\n')).not.toContain('&#x20;');
+    expect(await copyAll('No image here&#x20;\n')).toBe('No image here');
+  });
+
+  it('copies a line that ends in a space without the space code', async () => {
+    setAttachmentsDir(DIR);
+    expect(await copyAll('Here is the image&#x20;\n\n![](attachments/b441.jpg)\n')).not.toContain('&#x20;');
+    expect(await copyAll('No image here&#x20;\n')).toBe('No image here');
+  });
+
   it('leaves text with no images to the editor as before', async () => {
     setAttachmentsDir(DIR);
     expect(await copyAll('just_some text\n')).toBe('just_some text');

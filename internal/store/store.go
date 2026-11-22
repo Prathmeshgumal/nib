@@ -338,7 +338,13 @@ func DeriveTitle(title, content string) string {
 		return truncate(t, 200)
 	}
 	for _, line := range strings.Split(content, "\n") {
-		if t := strings.TrimSpace(strings.TrimLeft(line, "# ")); t != "" {
+		// A trailing space is saved as "&#x20;" by the web editor; it is not
+		// part of anyone's title.
+		t := strings.TrimSpace(strings.TrimLeft(line, "# "))
+		for strings.HasSuffix(t, "&#x20;") {
+			t = strings.TrimSpace(strings.TrimSuffix(t, "&#x20;"))
+		}
+		if t != "" {
 			return truncate(t, 200)
 		}
 	}

@@ -2,6 +2,7 @@ import { editorViewOptionsCtx, schemaCtx, serializerCtx } from '@milkdown/kit/co
 import { NodeSelection } from '@milkdown/kit/prose/state';
 import { storedName } from '@/lib/attachments';
 import { attachedImages } from './imageChips';
+import { tidyEscapes } from './tidyEscapes';
 
 // Copying a prompt out of nib for Claude Code. In the note an image is
 // `![](attachments/x.jpg)`, a path that means nothing outside nib. Claude Code
@@ -116,14 +117,15 @@ export function copyPaths(ctx) {
       ...prev.handleDOMEvents,
       copy: (view, event) => copyPicture(view, event) || prev.handleDOMEvents?.copy?.(view, event) || false,
     },
-    // Asked before Milkdown's own clipboard plugin. Returning null hands a copy
-    // with no attached images back to it unchanged.
+    // Asked before Milkdown's own clipboard plugin. The text is tidied the way
+    // a saved note is, so a copy never carries `&#x20;` or stray backslashes.
     clipboardTextSerializer: (slice, view) => {
-      if (!attachmentsDir || !hasAttachedImage(slice.content)) return null;
       const doc = ctx.get(schemaCtx).topNodeType.createAndFill(undefined, slice.content);
       if (!doc) return '';
+      const markdown = tidyEscapes(ctx.get(serializerCtx)(doc));
+      if (!attachmentsDir || !hasAttachedImage(slice.content)) return markdown.trimEnd();
       const first = view ? imagesBefore(view.state) + 1 : 1;
-      return withImagePaths(ctx.get(serializerCtx)(doc), attachmentsDir, first).trimEnd();
+      return withImagePaths(markdown, attachmentsDir, first).trimEnd();
     },
   }));
 }

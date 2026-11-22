@@ -29,7 +29,11 @@ export function deriveTitle(title, content) {
   for (const line of unescapeMarkdown(content || '').split('\n')) {
     // Exactly what the store does - strip leading '#' and spaces, then trim -
     // so the two cannot drift apart.
-    const words = line.trim().replace(/^[#\s]+/, '').trim();
+    const words = line
+      .trim()
+      .replace(/^[#\s]+/, '')
+      .replace(/(?:&#x20;)+$/, '')
+      .trim();
     if (words) return words.slice(0, 200);
   }
   return '';

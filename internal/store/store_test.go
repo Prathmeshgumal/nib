@@ -121,6 +121,7 @@ func TestDeriveTitle(t *testing.T) {
 		{"", "\n\n  spaced first line", "spaced first line"},
 		{"", "", "Untitled"},
 		{"   ", "   ", "Untitled"},
+		{"", "This&#x20;\nmore", "This"},
 	} {
 		if got := DeriveTitle(tc.title, tc.content); got != tc.want {
 			t.Errorf("DeriveTitle(%q, %q) = %q, want %q", tc.title, tc.content, got, tc.want)

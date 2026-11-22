@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { deriveTitle, excerpt, unescapeMarkdown } from './noteText';
 
 describe('what a note is called', () => {
+  it('leaves a trailing space code out of the title', () => {
+    expect(deriveTitle('', 'This is a test&#x20;\n')).toBe('This is a test');
+  });
+
   it('uses the title when there is one', () => {
     expect(deriveTitle('Plans', '# Other')).toBe('Plans');
   });

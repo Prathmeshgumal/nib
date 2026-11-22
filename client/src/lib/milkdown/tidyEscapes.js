@@ -47,7 +47,33 @@ function parsed(markdown) {
   }
 }
 
-export function tidyEscapes(markdown) {
+// A line ending in a space is written as `…&#x20;`, so the space survives a
+// round trip. Nobody means anything by a space at the end of a line, and the
+// code leaked into titles, the sidebar and copied prompts. Code blocks are
+// left as they are: there the characters are the content.
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+const TRAILING_SPACE_REFS = /(?:&#x20;)+$/;
+
+export function dropTrailingSpaceRefs(markdown) {
+  if (typeof markdown !== 'string' || !markdown.includes('&#x20;')) return markdown;
+  let fence = null;
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const open = FENCE.exec(line);
+      if (open) {
+        const marker = open[1][0];
+        if (fence === null) fence = marker;
+        else if (fence === marker) fence = null;
+        return line;
+      }
+      return fence === null ? line.replace(TRAILING_SPACE_REFS, '') : line;
+    })
+    .join('\n');
+}
+
+export function tidyEscapes(input) {
+  const markdown = dropTrailingSpaceRefs(input);
   if (typeof markdown !== 'string' || !markdown.includes('\\')) return markdown;
 
   const whole = markdown.replace(ESCAPE, '$1');
