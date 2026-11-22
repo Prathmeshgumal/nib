@@ -205,7 +205,7 @@ func (s *Store) Get(id string) (Note, error) {
 func (s *Store) Create(title, content string) (Note, error) {
 	n := Note{
 		ID:        newID(),
-		Title:     DeriveTitle(title, Unescape(content)),
+		Title:     DeriveTitle(title, Unescape(dropLineBreaks(content))),
 		TitleSet:  strings.TrimSpace(title) != "",
 		Content:   content,
 		CreatedAt: now(),
@@ -227,7 +227,7 @@ func (s *Store) Create(title, content string) (Note, error) {
 func (s *Store) Update(id, title, content string) (Note, error) {
 	res, err := s.db.Exec(`UPDATE notes SET title = ?, title_set = ?, content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, Unescape(content)), strings.TrimSpace(title) != "",
+		DeriveTitle(title, Unescape(dropLineBreaks(content))), strings.TrimSpace(title) != "",
 		content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
@@ -250,7 +250,7 @@ func (s *Store) UpdateContent(id, content string) (Note, error) {
 		title = CASE WHEN title_set THEN title ELSE ? END,
 		content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle("", Unescape(content)), content, now(), Unescape(content), id)
+		DeriveTitle("", Unescape(dropLineBreaks(content))), content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
 	}
@@ -362,6 +362,16 @@ func nameImages(line string) string {
 		n++
 		return fmt.Sprintf("(image %d)", n)
 	})
+}
+
+// lineBreak is the backslash that ends a line broken inside a paragraph: the
+// last of an odd run. An even run is escaped backslashes, which are text.
+var lineBreak = regexp.MustCompile(`(?m)(^|[^\\])((?:\\\\)*)\\$`)
+
+// dropLineBreaks removes those marks. It runs before Unescape, while a line
+// break and an escaped backslash can still be told apart. Mirrors the client.
+func dropLineBreaks(content string) string {
+	return lineBreak.ReplaceAllString(content, "$1$2")
 }
 
 func truncate(s string, n int) string {

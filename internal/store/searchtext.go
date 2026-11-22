@@ -113,7 +113,7 @@ func backfillTitleSet(db *sql.DB) error {
 		return err
 	}
 	for _, r := range all {
-		if r.title == DeriveTitle("", Unescape(r.content)) {
+		if r.title == DeriveTitle("", Unescape(dropLineBreaks(r.content))) {
 			continue
 		}
 		if _, err := db.Exec(`UPDATE notes SET title_set = 1 WHERE id = ?`, r.id); err != nil {

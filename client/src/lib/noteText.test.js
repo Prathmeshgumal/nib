@@ -16,6 +16,10 @@ describe('what a note is called', () => {
     expect(deriveTitle('', 'See ![shot \\[1\\].png](attachments/0123456789abcdef.png) ok\n')).toBe('See (image 1) ok');
   });
 
+  it('leaves a line break backslash out of the title', () => {
+    expect(deriveTitle('', 'Top line\\\nnext\n')).toBe('Top line');
+  });
+
   it('uses the title when there is one', () => {
     expect(deriveTitle('Plans', '# Other')).toBe('Plans');
   });

@@ -30,10 +30,12 @@ const IMAGE =
   /!\[(?:\\.|[^\]\\])*\]\(<?attachments\/([0-9a-f]{16}\.[a-z0-9]{1,8})>?(?:\s+"(?:[^"\\]|\\.)*")?\)/g;
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
-// `&#x20;` is how the serializer keeps a space at either end of a line. In
-// copied text it is just a space, and at the ends of a line not even that.
-function spaces(markdown) {
-  if (!markdown.includes('&#x20;')) return markdown;
+// Markdown's ways of keeping something the eye cannot see, turned back into
+// what they stand for. `&#x20;` keeps a space at either end of a line: in a
+// copy it is just a space, and at the ends of a line not even that. A line
+// break inside a paragraph is a backslash at the end of the line: in a copy it
+// is just the line break. An even run of backslashes is literal text, kept.
+function plainLines(markdown) {
   let fence = null;
   return markdown
     .split('\n')
@@ -45,6 +47,8 @@ function spaces(markdown) {
         return line;
       }
       if (fence !== null) return line;
+      const trailing = /\\+$/.exec(line)?.[0].length ?? 0;
+      if (trailing % 2 === 1) line = line.slice(0, -1).trimEnd();
       return line
         .replace(/^(?:&#x20;)+/, '')
         .replace(/(?:&#x20;)+$/, '')
@@ -59,7 +63,7 @@ export function withImagePaths(markdown, dir = attachmentsDir, firstNumber = 1) 
   if (!dir) return markdown;
   const paths = [];
   let n = firstNumber;
-  const text = spaces(
+  const text = plainLines(
     markdown
       .replace(IMAGE, (_, stored) => {
         paths.push(`${dir}/${stored}`);
@@ -69,6 +73,15 @@ export function withImagePaths(markdown, dir = attachmentsDir, firstNumber = 1) 
   );
   if (paths.length === 0) return text;
   return `${text.trimEnd()}\n\n${paths.join('\n')}`;
+}
+
+function hasLineBreak(fragment) {
+  let found = false;
+  fragment.descendants((node) => {
+    if (node.type.name === 'hardbreak' || node.type.name === 'hard_break') found = true;
+    return !found;
+  });
+  return found;
 }
 
 function hasAttachedImage(fragment) {
@@ -157,10 +170,14 @@ export function copyPaths(ctx) {
     // Asked before Milkdown's own clipboard plugin. A copy with no attached
     // image is handed back to it (null), which copies plain text as plain text.
     clipboardTextSerializer: (slice, view) => {
-      if (!attachmentsDir || !hasAttachedImage(slice.content)) return null;
+      const images = attachmentsDir && hasAttachedImage(slice.content);
+      // Milkdown writes a line break as a trailing backslash, so a copy with
+      // one is written here even without images.
+      if (!images && !hasLineBreak(slice.content)) return null;
       const doc = ctx.get(schemaCtx).topNodeType.createAndFill(undefined, slice.content);
       if (!doc) return '';
       const markdown = tidyEscapes(ctx.get(serializerCtx)(doc));
+      if (!images) return plainLines(markdown).trimEnd();
       const first = view ? imagesBefore(view.state) + 1 : 1;
       return withImagePaths(markdown, attachmentsDir, first).trimEnd();
     },

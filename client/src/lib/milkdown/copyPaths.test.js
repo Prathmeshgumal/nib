@@ -32,6 +32,10 @@ describe('copied text points at the image files', () => {
     expect(withImagePaths(md, DIR)).toBe(`(image 1) then (image 2)\n\n${DIR}/${A}\n${DIR}/${B}`);
   });
 
+  it('keeps a backslash that is really part of the text', () => {
+    expect(withImagePaths(`C:\\\\ ![](attachments/${A}) end \\\\\nnext`, DIR)).toBe(`C:\\\\ (image 1) end \\\\\nnext\n\n${DIR}/${A}`);
+  });
+
   it('turns a space code back into a space', () => {
     expect(withImagePaths(`&#x20;see ![](attachments/${A})&#x20;`, DIR)).toBe(`see (image 1)\n\n${DIR}/${A}`);
   });
@@ -95,6 +99,14 @@ describe('copying out of the editor', () => {
   it('copies a line that ends in a space without the space code', async () => {
     setAttachmentsDir(DIR);
     expect(await copyAll(`Here is the image&#x20;\n\n![](attachments/${A})\n`)).not.toContain('&#x20;');
+  });
+
+  it('copies a line break as a plain line break, not a backslash', async () => {
+    setAttachmentsDir(DIR);
+    const md = `first line\\\nsecond ![](attachments/${A}) line\\\nthird\n`;
+    const text = await copyAll(md);
+    expect(text).toContain('first line\nsecond (image 1) line\nthird');
+    expect(await copyAll('no image\\\nnext line\n')).toBe('no image\nnext line');
   });
 
   it('leaves text with no images to the editor as before', async () => {

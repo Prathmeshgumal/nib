@@ -114,6 +114,21 @@ func TestListIsNewestFirst(t *testing.T) {
 	}
 }
 
+func TestDropLineBreaks(t *testing.T) {
+	for in, want := range map[string]string{
+		"Top line\\\nnext": "Top line\nnext",
+		`C:\\` + "\nnext":  `C:\\` + "\nnext",
+		`odd\\\` + "\n":    `odd\\` + "\n",
+	} {
+		if got := dropLineBreaks(in); got != want {
+			t.Errorf("dropLineBreaks(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := DeriveTitle("", Unescape(dropLineBreaks("Top line\\\nnext"))); got != "Top line" {
+		t.Errorf("title = %q", got)
+	}
+}
+
 func TestDeriveTitle(t *testing.T) {
 	for _, tc := range []struct{ title, content, want string }{
 		{"Explicit", "body", "Explicit"},

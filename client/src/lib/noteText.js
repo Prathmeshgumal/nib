@@ -31,11 +31,17 @@ const nameImages = (line) => {
   return line.replace(TITLE_IMAGE, () => `(image ${++n})`);
 };
 
+// A line break inside a paragraph is saved as a backslash ending the line. An
+// odd run of them ends in that mark; an even run is escaped backslashes, which
+// are text. Read before unescaping, while the two can still be told apart.
+// Mirrors dropLineBreaks in internal/store.
+const dropLineBreaks = (s) => s.replace(/(^|[^\\])((?:\\\\)*)\\$/gm, '$1$2');
+
 export function deriveTitle(title, content) {
   const t = (title || '').trim();
   if (t) return t;
   // Unescaped first, then the first line - the order the store does it in.
-  for (const line of unescapeMarkdown(content || '').split('\n')) {
+  for (const line of unescapeMarkdown(dropLineBreaks(content || '')).split('\n')) {
     // Exactly what the store does - strip leading '#' and spaces, then trim -
     // so the two cannot drift apart.
     const words = nameImages(line)
