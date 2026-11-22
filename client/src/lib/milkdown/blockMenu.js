@@ -105,7 +105,9 @@ export const blockMenu = $prose((ctx) => {
         menu = null;
       };
 
-      const open = (handle, pos) => {
+      // `anchor` is the box the menu hangs from: the dots when it was
+      // clicked open, the start of the block when it came from the keyboard.
+      const open = (anchor, pos) => {
         close();
         menu = buildMenu((item) => {
           close();
@@ -128,7 +130,7 @@ export const blockMenu = $prose((ctx) => {
         });
         // Placed under the dots, and pulled back inside the window when the
         // block is far enough down the page that the menu would hang off it.
-        const box = handle.getBoundingClientRect();
+        const box = anchor.getBoundingClientRect?.() ?? anchor;
         menu.style.visibility = 'hidden';
         const height = menu.getBoundingClientRect().height;
         const top = box.bottom + 4 + height > window.innerHeight
@@ -185,12 +187,36 @@ export const blockMenu = $prose((ctx) => {
       };
 
       const onKeyDown = (event) => {
+        // Ctrl+/ (Cmd+/ on a Mac) opens the same menu for the block the cursor
+        // is in. The dots only appear under a pointer, so without this the
+        // menu - turning a block into another, duplicating it, deleting it -
+        // could not be reached from the keyboard at all.
+        if (openFromKeyboard(event)) return;
         if (event.key !== 'Escape' || !menu) return;
         // Escape on an open menu closes the menu and goes back to the writing,
         // rather than also stepping out of the note.
         event.stopPropagation();
         close();
         view.focus();
+      };
+
+      const openFromKeyboard = (event) => {
+        const mod = event.ctrlKey || event.metaKey;
+        if (!mod || event.shiftKey || event.altKey || event.key !== '/') return false;
+        if (!view.hasFocus()) return false;
+        const { from } = view.state.selection;
+        const range = blockRangeAt(view.state.doc, from);
+        if (!range) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        let at;
+        try {
+          at = view.coordsAtPos(range.from + 1);
+        } catch {
+          return false;
+        }
+        open({ top: at.top, bottom: at.bottom, left: at.left }, from);
+        return true;
       };
 
       document.addEventListener('pointerdown', onPointerDown, true);

@@ -44,8 +44,42 @@ export function toggleHeading(ctx, level) {
   });
 }
 
-// buildTopBar is handed to Crepe. The group sits first, beside the dropdown it
-// supplements, rather than out at the end past the tables and the dividers.
+// What each button on the bar is called. Crepe draws them as bare icons with
+// no name at all, so a screen reader announced seventeen of them as "button"
+// and a mouse got no tooltip to say what the terminal-box one was for.
+export const TOP_BAR_LABELS = {
+  nibH1: 'Heading 1',
+  nibH2: 'Heading 2',
+  nibH3: 'Heading 3',
+  bold: 'Bold',
+  italic: 'Italic',
+  strikethrough: 'Strikethrough',
+  code: 'Inline code',
+  'bullet-list': 'Bulleted list',
+  'ordered-list': 'Numbered list',
+  'task-list': 'Task list',
+  link: 'Link',
+  image: 'Image',
+  table: 'Table',
+  'code-block': 'Code block',
+  math: 'Math',
+  quote: 'Quote',
+  hr: 'Divider',
+};
+
+// The keys of the buttons the bar ended up with, in the order they are drawn.
+// Crepe renders straight from the groups, so this is the order of the DOM.
+let drawnKeys = [];
+export const topBarKeys = () => drawnKeys;
+
+// buildTopBar is handed to Crepe, after its own groups are in place.
+//
+// The headings go first. Crepe's own way in was a "Paragraph" dropdown that
+// read as a label rather than a control, and once these three buttons were on
+// the bar it only repeated them - two controls side by side doing one job,
+// costing a sixth of the bar's width. The dropdown is gone; pressing a
+// heading's button again returns to plain text, and H4 to H6 are still a
+// `####` away.
 export function buildTopBar(builder) {
   const group = builder.addGroup('nibHeadings', 'Headings');
   for (const level of HEADING_BUTTONS) {
@@ -54,5 +88,34 @@ export function buildTopBar(builder) {
       active: (ctx) => isHeadingActive(ctx, level),
       onRun: (ctx) => toggleHeading(ctx, level),
     });
+  }
+  // build() hands back the builder's own list, so arranging it here is
+  // arranging the bar. A builder without one (the tests' stand-in) is left as
+  // it was given.
+  const groups = builder.build?.();
+  if (!groups) return;
+  const at = (key) => groups.findIndex((g) => g.key === key);
+  if (at('heading') !== -1) groups.splice(at('heading'), 1);
+  groups.unshift(...groups.splice(at('nibHeadings'), 1));
+  drawnKeys = groups.flatMap((g) => g.items.filter((i) => i.onRun).map((i) => i.key));
+}
+
+// Names every button on the bar, by position. The bar is a Vue app that
+// re-renders as the selection moves, so this runs whenever it changes.
+export function labelTopBar(bar, keys = topBarKeys()) {
+  const buttons = bar.querySelectorAll('.top-bar-item');
+  buttons.forEach((button, i) => {
+    const label = TOP_BAR_LABELS[keys[i]];
+    if (!label) return;
+    if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
+    if (button.title !== label) button.title = label;
+    const pressed = String(button.classList.contains('active'));
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
+  });
+  // The bar is a toolbar, which is what tells assistive technology that the
+  // buttons in it belong together.
+  if (bar.getAttribute('role') !== 'toolbar') {
+    bar.setAttribute('role', 'toolbar');
+    bar.setAttribute('aria-label', 'Formatting');
   }
 }

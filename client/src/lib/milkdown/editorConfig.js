@@ -8,6 +8,7 @@ import { imageResize } from './imageResize';
 import { emptyTaskPlugin } from './emptyTask';
 import { blockMenu } from './blockMenu';
 import { buildTopBar } from './topBar';
+import { editorChrome } from './editorChrome';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -128,7 +129,8 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
     .use(attachment)
     .use(imageResize)
     .use(emptyTaskPlugin)
-    .use(blockMenu);
+    .use(blockMenu)
+    .use(editorChrome);
   return crepe;
 }
 

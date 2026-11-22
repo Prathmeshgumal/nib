@@ -8,6 +8,10 @@
   /* The width of a note's column. The title, the status line and the writing
    * all share it, so they line up as one column down the middle of the pane. */
   --nib-column: 46rem;
+  /* Room either side of it for the plus and the dots beside each block. They
+   * reach about 82px left of the text; any less and the editor's own scroll
+   * box clipped the plus off its edge. */
+  --nib-gutter: 5.25rem;
   /* The one colour in the editor that is nib's rather than the interface's.
    * It marks where a dragged block will land, so it has to be the thing your
    * eye goes to - a hairline grey cannot do that job. It is the same blue as
@@ -25,18 +29,25 @@
   --card-foreground: #37352f;
   --popover: #ffffff;
   --popover-foreground: #37352f;
-  --primary: #2383e2;
+  /* A shade under Notion's own blue: white on #2383e2 is 3.9:1, short of the
+   * 4.5:1 that a button's label needs. This is 5.1:1. */
+  --primary: #1f6fc5;
   --primary-foreground: #ffffff;
+  /* Blue as text - links, the lit-up toolbar buttons. */
+  --link: #1f6fc5;
   --secondary: #f1f0ee;
   --secondary-foreground: #37352f;
   --muted: #f7f6f3;
   --muted-foreground: #787066;
   --accent: #efefee;
   --accent-foreground: #37352f;
-  --destructive: #eb5757;
+  /* 4.9:1 on white, so "Delete" reads as text and not only as a colour. */
+  --destructive: #cf3a3a;
   --destructive-foreground: #ffffff;
-  --border: #e9e9e7;
-  --input: #e9e9e7;
+  /* Borders that only separate surfaces stay quiet; the ones around a field
+   * you type into have to be visible (3:1), or the field has no edge. */
+  --border: #dcdbd8;
+  --input: #8f8d88;
   --ring: #2383e2;
 }
 
@@ -49,8 +60,9 @@
   --card-foreground: #d4d4d4;
   --popover: #252525;
   --popover-foreground: #d4d4d4;
-  --primary: #2383e2;
+  --primary: #1f6fc5;
   --primary-foreground: #ffffff;
+  --link: #4a9eed;
   --secondary: #2f2f2f;
   --secondary-foreground: #d4d4d4;
   --muted: #252525;
@@ -58,11 +70,18 @@
   --accent: #2f2f2f;
   --accent-foreground: #ffffff;
   --destructive: #eb5757;
-  --destructive-foreground: #ffffff;
-  --border: #2f2f2f;
-  --input: #2f2f2f;
-  --ring: #2383e2;
+  /* White on this red is 3.5:1; the page's own near-black is 5:1. */
+  --destructive-foreground: #191919;
+  --border: #3a3a3a;
+  --input: #6b6b6b;
+  --ring: #4a9eed;
   --nib-accent: #2383e2;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --nib-gutter: 0.75rem;
+  }
 }
 
 @theme inline {
@@ -85,6 +104,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-link: var(--link);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -8,16 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Badge } from '@/components/ui/badge';
 import { relativeTime, useMinuteTick } from '@/lib/time';
 import { cn } from '@/lib/utils';
-
-// The first line of the note worth previewing. A note usually opens with its
-// title as a heading, and showing that again under the title says nothing.
-function excerpt(content, title) {
-  const line = (content || '')
-    .split('\n')
-    .map((l) => l.replace(/^[#>\-*\d.\s`]+/, '').trim())
-    .find((l) => l && l !== (title || '').trim());
-  return line ? line.slice(0, 90) : 'Empty note';
-}
+import { excerpt } from '@/lib/noteText';
 
 export default function NoteList({
   notes,
@@ -93,10 +84,13 @@ export default function NoteList({
                   )}
                 >
                   <div className="truncate text-sm font-medium">{note.title || 'Untitled'}</div>
-                  <div className="text-muted-foreground mt-0.5 truncate text-xs">
+                  {/* An empty line keeps a title-only note the same height as
+                      its neighbours, so the list does not jump. */}
+                  <div className="text-muted-foreground mt-0.5 min-h-4 truncate text-xs">
                     {excerpt(note.content, note.title)}
                   </div>
-                  <div className="text-muted-foreground/80 mt-1.5 text-[11px]">
+                  {/* Full strength: at 11px the faded grey fell under 4.5:1. */}
+                  <div className="text-muted-foreground mt-1.5 text-xs">
                     {relativeTime(note.updated_at)}
                   </div>
                 </button>

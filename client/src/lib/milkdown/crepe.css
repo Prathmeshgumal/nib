@@ -28,7 +28,9 @@
    * dark mode - left the drag handle's dots and the block menu's icons at the
    * weight of a hairline, which is to say invisible. */
   --crepe-color-outline: var(--muted-foreground);
-  --crepe-color-primary: var(--primary);
+  /* Links and the lit-up toolbar buttons are text-sized, so they take the
+   * blue that reads against the note rather than the one behind white text. */
+  --crepe-color-primary: var(--link);
   --crepe-color-secondary: var(--secondary);
   --crepe-color-on-secondary: var(--secondary-foreground);
 
@@ -41,7 +43,9 @@
   --crepe-color-inline-code: color-mix(in oklch, var(--destructive) 70%, var(--foreground));
   --crepe-color-error: var(--destructive);
   --crepe-color-hover: var(--accent);
-  --crepe-color-selected: var(--accent);
+  /* Selected text. The hover grey was 1.2:1 against the note in dark mode, so
+   * a selection looked like nothing had been selected at all. */
+  --crepe-color-selected: color-mix(in srgb, var(--nib-accent) 35%, transparent);
   --crepe-color-inline-area: var(--muted);
 
   --crepe-base-font-size: 16px;
@@ -97,9 +101,6 @@
   /* Room for the drag handle and the plus, so they sit beside the block
    * instead of on top of the text, and so the text never touches the edge. */
   padding-inline: var(--nib-gutter);
-  /* The plus and the dots together reach about 82px left of the text. Any
-   * less and the editor's own scroll box clipped the plus off its edge. */
-  --nib-gutter: 5.25rem;
 }
 
 /* Crepe spaces the bar's buttons 12px apart and its dividers 20px. Tighter,
@@ -112,14 +113,65 @@
   margin: 10px 6px;
 }
 
-@media (max-width: 640px) {
-  .nib-editor .milkdown .ProseMirror {
-    --nib-gutter: 0.75rem;
+/* The bar is the note's, not a second panel laid over it: the same colour as
+ * the page it sits on, with a rule underneath. Painted in the menu colour it
+ * stopped short of the editor's scrollbar and looked a size smaller than the
+ * title line above it. */
+.nib-editor .milkdown .milkdown-top-bar {
+  background: var(--card);
+  border-bottom-color: var(--border);
+  padding: 0;
+}
+
+/* The buttons line up with the writing: the first one starts where the text
+ * does, under the title, so the note reads as one column instead of three
+ * different left edges. */
+.nib-editor .milkdown .milkdown-top-bar .top-bar-inner {
+  /* Only the left edge follows the column. The right is left free, so that at
+   * middling widths the buttons use the room past the text before they wrap -
+   * held to the column on both sides, a 900px window wrapped them three deep.
+   * A percentage padding is a share of the bar's width, which is what lets
+   * this work out where the centred column starts. */
+  padding-left: calc(
+    max(0px, (100% - var(--nib-column) - 2 * var(--nib-gutter)) / 2) + var(--nib-gutter) - 3px
+  );
+  padding-right: 0;
+}
+
+/* Without this, tabbing along the bar showed nothing at all: Crepe takes the
+ * outline away and puts nothing back. */
+.milkdown .milkdown-top-bar .top-bar-item:focus-visible,
+.milkdown .milkdown-toolbar .toolbar-item:focus-visible,
+.milkdown .milkdown-block-handle .operation-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* A finger needs more than the 32px a mouse is happy with. */
+@media (pointer: coarse) {
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-item {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
   }
-  /* A phone fits five or six of these to a row; Crepe's spacing made the bar
-   * four rows deep, which left almost no room for the note itself. */
-  .nib-editor .milkdown .milkdown-top-bar {
-    padding: 0 4px;
+  .milkdown .milkdown-toolbar .toolbar-item {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* On a phone the bar is one row that scrolls sideways. Wrapped, it was three
+   * rows deep - 133px of a 740px screen before the keyboard took half of the
+   * rest - and the dividers dangled at the ends of the rows. */
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-inner {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-inline: 0;
+  }
+  .nib-editor .milkdown .milkdown-top-bar .top-bar-inner::-webkit-scrollbar {
+    display: none;
   }
   .nib-editor .milkdown .milkdown-top-bar .top-bar-item {
     margin: 2px;
@@ -127,6 +179,15 @@
   .nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
     margin: 10px 4px;
   }
+}
+
+/* The bubble over a selection. It used to share the top bar's depth and
+ * colour, so where they met they merged into one row; it now floats above
+ * everything in the note and has an edge of its own. */
+.milkdown .milkdown-toolbar {
+  z-index: 20;
+  border: 1px solid var(--border);
+  box-shadow: var(--crepe-shadow-2);
 }
 
 /* Crepe paints a code block in `surface`, the same colour as the menus that
