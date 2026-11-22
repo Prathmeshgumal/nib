@@ -5,6 +5,9 @@ import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { editable, savePayload } from '@/lib/notePayload';
+import { deriveTitle } from '@/lib/noteText';
 import { TrashDialog } from '@/components/TrashDialog';
 import {
   createNote,
@@ -17,10 +20,12 @@ import {
   updateNote,
 } from '@/lib/api';
 
-const blankNote = () => ({ id: null, title: '', content: '', updated_at: null });
+const blankNote = () => ({ id: null, title: '', content: '', updated_at: null, titleEdited: false });
 
 export default function App() {
-  const [notes, setNotes] = useState([]);
+  // null until the first answer arrives, so the list does not flash "No notes
+  // yet" and "0 notes" on every page load.
+  const [notes, setNotes] = useState(null);
   const [note, setNote] = useState(null);       // the open note
   const [query, setQuery] = useState('');
   // The one thing that says whether what is on screen has reached the note.
@@ -35,6 +40,7 @@ export default function App() {
     try {
       setNotes(await listNotes(q));
     } catch (e) {
+      setNotes((n) => n ?? []);
       toast.error('Could not load notes', { description: e.message });
     }
   }, []);
@@ -52,13 +58,20 @@ export default function App() {
   // looked at out from under the pointer. It refreshes when the search changes
   // and when the open note changes, and not while a note is being written.
   useEffect(() => {
-    const t = setTimeout(() => refresh(query), 200);
+    // The debounce is for typing; the first load has nothing to wait for.
+    const t = setTimeout(() => refresh(query), query ? 200 : 0);
     return () => clearTimeout(t);
   }, [query, refresh]);
 
   useEffect(() => {
     refreshTrash();
   }, [refreshTrash]);
+
+  // Every tab said "Notes", which is no help with two or three of them open.
+  useEffect(() => {
+    // A title nobody chose is the first line, as it is in the list.
+    document.title = note ? `${deriveTitle(note.title, note.content) || 'Untitled'} · Notes` : 'Notes';
+  }, [note]);
 
   const startNew = () => {
     setNote(blankNote());
@@ -74,14 +87,15 @@ export default function App() {
     if (!current) return;
     setStatus('saving');
     try {
-      const payload = { title: current.title, content: current.content };
+      // The title goes only once it has been edited here - see notePayload.
+      const payload = savePayload(current);
       const saved = current.id
         ? await updateNote(current.id, payload)
         : await createNote(payload);
       setStatus('saved');
       // Keep the id a create just handed back, but not a stale body: the
       // note may have been typed into while the request was in flight.
-      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : saved));
+      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : editable(saved)));
       if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
       return saved;
     } catch (e) {
@@ -177,6 +191,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Opening a note, or closing the one that is open (next = null).
+  const openNote = async (next) => {
+    // A save waiting on a timer belongs to the note being left, so it has to
+    // land before the open note changes under it. Whatever is still sitting
+    // in the editor's own debounce belongs to the note being left, too.
+    syncFromEditor();
+    await autosave.flush();
+    setNote(editable(next));
+    setStatus('saved');
+    // Now that the note being written has been left, the list can catch up
+    // with what the writing did to it.
+    refresh(query);
+  };
+
   const remove = async (id) => {
     try {
       await deleteNote(id);
@@ -197,7 +225,7 @@ export default function App() {
       const restored = await restoreNote(id);
       setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
-      setNote(restored);
+      setNote(editable(restored));
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });
@@ -238,21 +266,11 @@ export default function App() {
   return (
     <div className="flex h-svh flex-col md:flex-row">
       <NoteList
+        // On a phone there is room for the list or the note, not both.
+        className={note ? 'hidden md:flex' : undefined}
         notes={notes}
         selectedId={note?.id}
-        onSelect={async (next) => {
-          // A save waiting on a timer belongs to the note being left, so it
-          // has to land before the open note changes under it.
-          // Whatever is still sitting in the editor's own debounce belongs to
-          // the note being left, not the one being opened.
-          syncFromEditor();
-          await autosave.flush();
-          setNote(next);
-                setStatus('saved');
-          // Now that the note being written has been left, the list can catch
-          // up with what the writing did to it.
-          refresh(query);
-        }}
+        onSelect={openNote}
         onNew={startNew}
         query={query}
         onQuery={setQuery}
@@ -262,8 +280,13 @@ export default function App() {
         onUndo={undoLastDelete}
       />
 
-      <main className="flex min-h-0 flex-1 flex-col p-4 md:p-6">
-        <Card className="flex min-h-0 flex-1 flex-col gap-0 p-5">
+      <main
+        className={cn(
+          'min-h-0 flex-1 flex-col p-2 sm:p-4 md:flex md:p-6',
+          note ? 'flex' : 'hidden'
+        )}
+      >
+        <Card className="flex min-h-0 flex-1 flex-col gap-0 p-3 sm:p-5">
           {note ? (
             <NotePane
               note={note}
@@ -275,6 +298,7 @@ export default function App() {
                 autosave.schedule(next);
               }}
               onDelete={remove}
+              onBack={() => openNote(null)}
               onReady={(api) => {
                 editor.current = api;
               }}

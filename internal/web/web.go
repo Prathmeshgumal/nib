@@ -149,9 +149,20 @@ func (s *Server) staticHandler() http.Handler {
 	})
 }
 
+// noteBody is what a create or an update sends. Title is a pointer so that
+// leaving it out can mean something: an update without a title is a save of
+// the body alone, and does not touch a title somebody chose. Sending one -
+// blank included, which hands the name back to the first line - sets it.
 type noteBody struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
+	Title   *string `json:"title"`
+	Content string  `json:"content"`
+}
+
+func (b noteBody) title() string {
+	if b.Title == nil {
+		return ""
+	}
+	return *b.Title
 }
 
 func (s *Server) handleCollection(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +180,7 @@ func (s *Server) handleCollection(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
-		note, err := s.store.Create(b.Title, b.Content)
+		note, err := s.store.Create(b.title(), b.Content)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -201,7 +212,13 @@ func (s *Server) handleItem(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
-		note, err := s.store.Update(id, b.Title, b.Content)
+		var note store.Note
+		var err error
+		if b.Title == nil {
+			note, err = s.store.UpdateContent(id, b.Content)
+		} else {
+			note, err = s.store.Update(id, *b.Title, b.Content)
+		}
 		if err != nil {
 			notFoundOr(w, err)
 			return

@@ -13,8 +13,10 @@ export default function EmptyState({ onNew }) {
           Pick one from the sidebar, or start writing something new.
         </p>
       </div>
+      {/* Worded apart from the sidebar's "New note", so a screen reader is
+          not offered two identical buttons with nothing to tell them apart. */}
       <Button onClick={onNew}>
-        <Plus /> New note
+        <Plus /> Start writing
       </Button>
     </div>
   );

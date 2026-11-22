@@ -63,9 +63,31 @@ export function buildMenu(onPick) {
         e.stopPropagation();
         onPick(item);
       });
+      // Enter and Space are caught as keys, not as the click they would turn
+      // into: clicks are deliberately ignored, see mousedown above.
+      button.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        e.stopPropagation();
+        onPick(item);
+      });
       menu.append(button);
     }
   }
+  // Arrow keys walk the items, wrapping at either end, the way every other
+  // menu on the page does.
+  menu.addEventListener('keydown', (e) => {
+    const items = [...menu.querySelectorAll('.nib-block-menu-item')];
+    const at = items.indexOf(document.activeElement);
+    let next = null;
+    if (e.key === 'ArrowDown') next = items[(at + 1) % items.length];
+    else if (e.key === 'ArrowUp') next = items[(at - 1 + items.length) % items.length];
+    else if (e.key === 'Home') next = items[0];
+    else if (e.key === 'End') next = items[items.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
+  });
   return menu;
 }
 
@@ -83,7 +105,9 @@ export const blockMenu = $prose((ctx) => {
         menu = null;
       };
 
-      const open = (handle, pos) => {
+      // `anchor` is the box the menu hangs from: the dots when it was
+      // clicked open, the start of the block when it came from the keyboard.
+      const open = (anchor, pos) => {
         close();
         menu = buildMenu((item) => {
           close();
@@ -100,9 +124,13 @@ export const blockMenu = $prose((ctx) => {
           item.run(ctx);
         });
         document.body.append(menu);
+        // Tabbing out of the menu, or into another field, leaves it behind.
+        menu.addEventListener('focusout', (e) => {
+          if (e.relatedTarget && !menu?.contains(e.relatedTarget)) close();
+        });
         // Placed under the dots, and pulled back inside the window when the
         // block is far enough down the page that the menu would hang off it.
-        const box = handle.getBoundingClientRect();
+        const box = anchor.getBoundingClientRect?.() ?? anchor;
         menu.style.visibility = 'hidden';
         const height = menu.getBoundingClientRect().height;
         const top = box.bottom + 4 + height > window.innerHeight
@@ -111,6 +139,15 @@ export const blockMenu = $prose((ctx) => {
         menu.style.top = `${top + window.scrollY}px`;
         menu.style.left = `${box.left + window.scrollX}px`;
         menu.style.visibility = '';
+        // Focused, so the keyboard can reach it at all. Two frames later:
+        // Crepe's handle, on the mouseup that follows this pointerup, waits one
+        // frame and then focuses the editor, which would take it straight back.
+        // preventScroll: the menu is already where it should be.
+        const opened = menu;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (menu !== opened) return;
+          opened.querySelector('.nib-block-menu-item')?.focus({ preventScroll: true });
+        }));
       };
 
       const blockPosUnder = (handle) => {
@@ -150,19 +187,49 @@ export const blockMenu = $prose((ctx) => {
       };
 
       const onKeyDown = (event) => {
-        if (event.key === 'Escape') close();
+        // Ctrl+/ (Cmd+/ on a Mac) opens the same menu for the block the cursor
+        // is in. The dots only appear under a pointer, so without this the
+        // menu - turning a block into another, duplicating it, deleting it -
+        // could not be reached from the keyboard at all.
+        if (openFromKeyboard(event)) return;
+        if (event.key !== 'Escape' || !menu) return;
+        // Escape on an open menu closes the menu and goes back to the writing,
+        // rather than also stepping out of the note.
+        event.stopPropagation();
+        close();
+        view.focus();
+      };
+
+      const openFromKeyboard = (event) => {
+        const mod = event.ctrlKey || event.metaKey;
+        if (!mod || event.shiftKey || event.altKey || event.key !== '/') return false;
+        if (!view.hasFocus()) return false;
+        const { from } = view.state.selection;
+        const range = blockRangeAt(view.state.doc, from);
+        if (!range) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        let at;
+        try {
+          at = view.coordsAtPos(range.from + 1);
+        } catch {
+          return false;
+        }
+        open({ top: at.top, bottom: at.bottom, left: at.left }, from);
+        return true;
       };
 
       document.addEventListener('pointerdown', onPointerDown, true);
       document.addEventListener('pointerup', onPointerUp, true);
-      document.addEventListener('keydown', onKeyDown);
+      // Capture, so it runs before the app's own Escape handler on window.
+      document.addEventListener('keydown', onKeyDown, true);
       window.addEventListener('scroll', close, true);
 
       return {
         destroy: () => {
           document.removeEventListener('pointerdown', onPointerDown, true);
           document.removeEventListener('pointerup', onPointerUp, true);
-          document.removeEventListener('keydown', onKeyDown);
+          document.removeEventListener('keydown', onKeyDown, true);
           window.removeEventListener('scroll', close, true);
           close();
         },

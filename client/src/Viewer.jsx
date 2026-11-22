@@ -50,10 +50,16 @@ function Table({ rows }) {
   return (
     <div className="overflow-auto rounded-md border">
       <table className="w-full border-collapse text-sm">
-        <thead className="bg-muted/50 sticky top-0">
+        {/* Opaque, or the rows scrolling under the pinned header show through
+            it. The rule under it is a shadow because a collapsed border does
+            not travel with a sticky cell. */}
+        <thead className="bg-muted sticky top-0 z-10">
           <tr>
             {pad(head).map((cell, i) => (
-              <th key={i} className="border-b px-3 py-2 text-left font-medium whitespace-nowrap">
+              <th
+                key={i}
+                className="bg-muted px-3 py-2 text-left font-medium whitespace-nowrap shadow-[inset_0_-1px_0_var(--border)]"
+              >
                 {cell}
               </th>
             ))}

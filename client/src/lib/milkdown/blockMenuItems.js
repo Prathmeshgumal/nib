@@ -14,6 +14,8 @@ import {
   wrapInBlockTypeCommand,
 } from '@milkdown/kit/preset/commonmark';
 import { createTable } from '@milkdown/kit/preset/gfm';
+import { liftTarget } from '@milkdown/kit/prose/transform';
+import { liftListItem } from '@milkdown/kit/prose/schema-list';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
 import { blockRangeAt, deleteBlock, duplicateBlock } from './blockOps';
 
@@ -50,13 +52,34 @@ const ICONS = {
   table: icon('M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h180v-140H200v140Zm260 0h300v-140H460v140ZM200-420h180v-140H200v140Zm260 0h300v-140H460v140ZM200-640h560v-120H200v120Z'),
 };
 
+// "Turn into" replaces what kind of block this is, so whatever it is wrapped
+// in - a quote, a list item - comes off first. Without this, setting the type
+// changed only the paragraph inside: Text on a quote left the quote, and Quote
+// on a list item put the whole list inside a quote.
+export function unwrap(ctx) {
+  const view = ctx.get(editorViewCtx);
+  const listItem = listItemSchema.type(ctx);
+  // Bounded, because each pass must lift at least one level or stop.
+  for (let i = 0; i < 16; i += 1) {
+    const { state } = view;
+    if (liftListItem(listItem)(state, view.dispatch)) continue;
+    const { $from, $to } = state.selection;
+    const range = $from.blockRange($to);
+    const target = range && liftTarget(range);
+    if (target == null) return;
+    view.dispatch(state.tr.lift(range, target));
+  }
+}
+
 // Converting keeps what is in the block. Crepe's own items clear it first; that
 // is the single most important difference in this file.
 const setBlock = (nodeType, attrs) => (ctx) => {
+  unwrap(ctx);
   ctx.get(commandsCtx).call(setBlockTypeCommand.key, { nodeType: nodeType(ctx), ...(attrs ? { attrs } : {}) });
 };
 
 const wrapBlock = (nodeType, attrs) => (ctx) => {
+  unwrap(ctx);
   ctx.get(commandsCtx).call(wrapInBlockTypeCommand.key, { nodeType: nodeType(ctx), ...(attrs ? { attrs } : {}) });
 };
 

@@ -18,9 +18,10 @@ export function DeleteNoteDialog({ title, onConfirm, children }) {
       <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete this note?</AlertDialogTitle>
+          <AlertDialogTitle>Move this note to the trash?</AlertDialogTitle>
           <AlertDialogDescription>
-            “{title || 'Untitled'}” will be permanently removed. This can't be undone.
+            “{title || 'Untitled'}” will be moved to the trash. You can restore it from
+            there for 30 days.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -29,7 +30,7 @@ export function DeleteNoteDialog({ title, onConfirm, children }) {
             className={cn(buttonVariants({ variant: 'destructive' }))}
             onClick={onConfirm}
           >
-            Delete
+            Move to trash
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -16,8 +16,12 @@ import (
 )
 
 type Note struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	// TitleSet says the title was typed by someone rather than worked out from
+	// the first line. A title nobody set follows the first line as it changes;
+	// one somebody set stays until they change or clear it.
+	TitleSet  bool   `json:"title_set"`
 	Content   string `json:"content"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
@@ -39,7 +43,8 @@ CREATE TABLE IF NOT EXISTS notes (
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   deleted_at  TEXT,
-  search_text TEXT NOT NULL DEFAULT ''
+  search_text TEXT NOT NULL DEFAULT '',
+  title_set   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (updated_at DESC);`
 
@@ -80,6 +85,17 @@ func Open(path string) (*Store, error) {
 	// Attachments live beside the database rather than in a fixed place, so
 	// pointing --db somewhere else takes the files along and the relative
 	// links inside the notes keep resolving.
+	// Whether a title was typed or worked out was never recorded, which is how
+	// a rename kept turning back into the note's first line. Notes from before
+	// the column are sorted by the only evidence there is: a title that is not
+	// the first line was typed by someone.
+	if _, err := db.Exec(`ALTER TABLE notes ADD COLUMN title_set INTEGER NOT NULL DEFAULT 0`); err == nil {
+		if err := backfillTitleSet(db); err != nil {
+			return nil, fmt.Errorf("migrating schema: %w", err)
+		}
+	} else if !strings.Contains(err.Error(), "duplicate column") {
+		return nil, fmt.Errorf("migrating schema: %w", err)
+	}
 	at, err := attach.Open(filepath.Join(filepath.Dir(path), "attachments"))
 	if err != nil {
 		return nil, err
@@ -139,7 +155,7 @@ func scan(rows *sql.Rows) ([]Note, error) {
 	notes := []Note{}
 	for rows.Next() {
 		var n Note
-		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &n.TitleSet, &n.Content, &n.CreatedAt, &n.UpdatedAt); err != nil {
 			return nil, err
 		}
 		notes = append(notes, n)
@@ -150,7 +166,7 @@ func scan(rows *sql.Rows) ([]Note, error) {
 // List returns notes newest-first, optionally filtered by a substring match on
 // the title or body. SQLite's LIKE is already case-insensitive for ASCII.
 func (s *Store) List(query string) ([]Note, error) {
-	const cols = `SELECT id, title, content, created_at, updated_at FROM notes`
+	const cols = `SELECT id, title, title_set, content, created_at, updated_at FROM notes`
 	if q := strings.TrimSpace(query); q != "" {
 		like := likePattern(q)
 		// search_text, not content: it is the same words with a serializer's
@@ -173,9 +189,9 @@ func (s *Store) List(query string) ([]Note, error) {
 func (s *Store) Get(id string) (Note, error) {
 	var n Note
 	err := s.db.QueryRow(
-		`SELECT id, title, content, created_at, updated_at FROM notes
+		`SELECT id, title, title_set, content, created_at, updated_at FROM notes
 		 WHERE id = ? AND deleted_at IS NULL`, id,
-	).Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.UpdatedAt)
+	).Scan(&n.ID, &n.Title, &n.TitleSet, &n.Content, &n.CreatedAt, &n.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return n, ErrNotFound
 	}
@@ -189,21 +205,51 @@ func (s *Store) Create(title, content string) (Note, error) {
 	n := Note{
 		ID:        newID(),
 		Title:     DeriveTitle(title, Unescape(content)),
+		TitleSet:  strings.TrimSpace(title) != "",
 		Content:   content,
 		CreatedAt: now(),
 		UpdatedAt: now(),
 	}
 	_, err := s.db.Exec(
-		`INSERT INTO notes (id, title, content, created_at, updated_at, search_text)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		n.ID, n.Title, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content))
+		`INSERT INTO notes (id, title, title_set, content, created_at, updated_at, search_text)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		n.ID, n.Title, n.TitleSet, n.Content, n.CreatedAt, n.UpdatedAt, Unescape(n.Content))
 	return n, err
 }
 
+// Update writes a note's title and body together. The title is taken as said:
+// one with words in it is kept as the note's chosen title, and a blank one
+// hands the name back to the first line.
+//
+// Saving only the body - what an editor does while someone types - is
+// UpdateContent, which leaves a chosen title alone.
 func (s *Store) Update(id, title, content string) (Note, error) {
-	res, err := s.db.Exec(`UPDATE notes SET title = ?, content = ?, updated_at = ?, search_text = ?
+	res, err := s.db.Exec(`UPDATE notes SET title = ?, title_set = ?, content = ?, updated_at = ?, search_text = ?
 		WHERE id = ? AND deleted_at IS NULL`,
-		DeriveTitle(title, Unescape(content)), content, now(), Unescape(content), id)
+		DeriveTitle(title, Unescape(content)), strings.TrimSpace(title) != "",
+		content, now(), Unescape(content), id)
+	if err != nil {
+		return Note{}, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return Note{}, ErrNotFound
+	}
+	return s.Get(id)
+}
+
+// UpdateContent writes a note's body and nothing about its title. A title
+// somebody chose stays as it is; one nobody chose follows the new first line.
+//
+// This is what stops a rename being undone. Each interface used to send its
+// own copy of the title with every save, so the terminal and the browser open
+// on one note took turns overwriting each other's - and a copy that was blank
+// came back as the first line.
+func (s *Store) UpdateContent(id, content string) (Note, error) {
+	res, err := s.db.Exec(`UPDATE notes SET
+		title = CASE WHEN title_set THEN title ELSE ? END,
+		content = ?, updated_at = ?, search_text = ?
+		WHERE id = ? AND deleted_at IS NULL`,
+		DeriveTitle("", Unescape(content)), content, now(), Unescape(content), id)
 	if err != nil {
 		return Note{}, err
 	}
@@ -241,7 +287,7 @@ func (s *Store) Restore(id string) error {
 
 // Trash lists what is currently recoverable, most recently deleted first.
 func (s *Store) Trash() ([]Note, error) {
-	rows, err := s.db.Query(`SELECT id, title, content, created_at, updated_at FROM notes
+	rows, err := s.db.Query(`SELECT id, title, title_set, content, created_at, updated_at FROM notes
 		WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`)
 	if err != nil {
 		return nil, err

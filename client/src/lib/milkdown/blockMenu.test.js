@@ -220,4 +220,30 @@ describe('the menu as it is drawn', () => {
     first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     expect(picked).toEqual(['duplicate']);
   });
+
+  it('picks the focused item on Enter or Space', () => {
+    const picked = [];
+    const menu = buildMenu((item) => picked.push(item.key));
+    const first = menu.querySelector('.nib-block-menu-item');
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(picked).toEqual(['duplicate', 'duplicate']);
+  });
+
+  it('moves between items with the arrow keys, wrapping at the ends', () => {
+    const menu = buildMenu(() => {});
+    document.body.append(menu);
+    const items = [...menu.querySelectorAll('.nib-block-menu-item')];
+    items[0].focus();
+    const press = (key) =>
+      document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    press('ArrowDown');
+    expect(document.activeElement).toBe(items[1]);
+    press('ArrowUp');
+    press('ArrowUp');
+    expect(document.activeElement).toBe(items[items.length - 1]);
+    press('Home');
+    expect(document.activeElement).toBe(items[0]);
+    menu.remove();
+  });
 });
