@@ -292,8 +292,10 @@ While editing:
 Notes are not limited in length. Paste a whole Markdown file in and keep editing it.
 
 **Titles are optional.** Leave the title blank and the first line of the note becomes its
-title, the way GitHub Gists work. If that first line is also the start of your note, the
-preview shows it once — as the heading — not twice.
+title, the way GitHub Gists work, and it keeps following the first line as you change it.
+Type a title of your own and it stays, whatever happens to the first line, until you change
+it or clear it again. If that first line is also the start of your note, the preview shows it
+once — as the heading — not twice.
 
 `$EDITOR` falls back to `$VISUAL`, then to nvim, vim, nano or vi, whichever is installed.
 
@@ -647,7 +649,7 @@ Available whenever the web UI is running, for scripting against your notes.
 | `GET` | `/api/notes?q=term` | Search titles and bodies |
 | `GET` | `/api/notes/:id` | Fetch one note |
 | `POST` | `/api/notes` | Create — `{"title": "...", "content": "..."}` |
-| `PUT` | `/api/notes/:id` | Update — same shape |
+| `PUT` | `/api/notes/:id` | Update — same shape; leave `title` out to save only the body |
 | `DELETE` | `/api/notes/:id` | Move to the trash |
 | `GET` | `/api/trash` | List what is recoverable |
 | `POST` | `/api/trash/:id` | Restore a note |
@@ -656,7 +658,10 @@ Available whenever the web UI is running, for scripting against your notes.
 | `POST` | `/api/attachments` | Store a file — `multipart/form-data`, field `file` |
 | `GET` | `/attachments/:name` | Fetch a stored file |
 
-`title` may be omitted or empty; it's derived from the first line.
+`title` may be omitted or empty; it's derived from the first line. Each note says whether
+its title was chosen (`"title_set": true`) or follows the first line. A `PUT` without
+`title` saves the body and leaves a chosen title alone; a `PUT` with an empty `title` goes
+back to following the first line.
 
 `POST /api/attachments` answers with the file's id, name, type, size, and the Markdown
 line to put in a note — so a script never has to know how a reference is spelled:

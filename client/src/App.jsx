@@ -6,6 +6,8 @@ import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { editable, savePayload } from '@/lib/notePayload';
+import { deriveTitle } from '@/lib/noteText';
 import { TrashDialog } from '@/components/TrashDialog';
 import {
   createNote,
@@ -18,7 +20,7 @@ import {
   updateNote,
 } from '@/lib/api';
 
-const blankNote = () => ({ id: null, title: '', content: '', updated_at: null });
+const blankNote = () => ({ id: null, title: '', content: '', updated_at: null, titleEdited: false });
 
 export default function App() {
   // null until the first answer arrives, so the list does not flash "No notes
@@ -67,7 +69,8 @@ export default function App() {
 
   // Every tab said "Notes", which is no help with two or three of them open.
   useEffect(() => {
-    document.title = note ? `${note.title || 'Untitled'} · Notes` : 'Notes';
+    // A title nobody chose is the first line, as it is in the list.
+    document.title = note ? `${deriveTitle(note.title, note.content) || 'Untitled'} · Notes` : 'Notes';
   }, [note]);
 
   const startNew = () => {
@@ -84,14 +87,15 @@ export default function App() {
     if (!current) return;
     setStatus('saving');
     try {
-      const payload = { title: current.title, content: current.content };
+      // The title goes only once it has been edited here - see notePayload.
+      const payload = savePayload(current);
       const saved = current.id
         ? await updateNote(current.id, payload)
         : await createNote(payload);
       setStatus('saved');
       // Keep the id a create just handed back, but not a stale body: the
       // note may have been typed into while the request was in flight.
-      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : saved));
+      setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : editable(saved)));
       if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
       return saved;
     } catch (e) {
@@ -194,7 +198,7 @@ export default function App() {
     // in the editor's own debounce belongs to the note being left, too.
     syncFromEditor();
     await autosave.flush();
-    setNote(next);
+    setNote(editable(next));
     setStatus('saved');
     // Now that the note being written has been left, the list can catch up
     // with what the writing did to it.
@@ -221,7 +225,7 @@ export default function App() {
       const restored = await restoreNote(id);
       setDeleted((d) => d.filter((x) => x !== id));
       await Promise.all([refresh(query), refreshTrash()]);
-      setNote(restored);
+      setNote(editable(restored));
       toast.success('Restored');
     } catch (e) {
       toast.error('Restore failed', { description: e.message });

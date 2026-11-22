@@ -59,7 +59,7 @@ func (m *model) autosave() tea.Cmd {
 		return nil
 	}
 
-	if _, err := m.st.Update(m.editing.ID, title, content); err != nil {
+	if _, err := m.saveExisting(title, content); err != nil {
 		m.err = err
 		return nil
 	}

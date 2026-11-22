@@ -48,7 +48,7 @@ export default function NotePane({ note, status, onChange, onDelete, onBack, onR
           placeholder={placeholder}
           aria-label="Note title"
           className="h-8 min-w-0 flex-1 border-0 px-0 text-base font-semibold shadow-none focus-visible:ring-0 md:text-lg dark:bg-transparent"
-          onChange={(e) => onChange({ ...note, title: e.target.value })}
+          onChange={(e) => onChange({ ...note, title: e.target.value, titleEdited: true })}
         />
 
         <span
@@ -67,7 +67,7 @@ export default function NotePane({ note, status, onChange, onDelete, onBack, onR
         )}
 
         {saved && (
-          <DeleteNoteDialog title={note.title} onConfirm={() => onDelete(note.id)}>
+          <DeleteNoteDialog title={note.title || placeholder} onConfirm={() => onDelete(note.id)}>
             {/* Grey until it is pointed at. In red at rest it was the loudest
                 thing on the line, louder than the title. */}
             <Button

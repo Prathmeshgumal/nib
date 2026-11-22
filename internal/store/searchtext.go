@@ -90,3 +90,35 @@ func likePattern(query string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return "%" + r.Replace(query) + "%"
 }
+
+// backfillTitleSet marks which titles were typed, for notes written before
+// that was recorded. It runs once, when the column is added.
+func backfillTitleSet(db *sql.DB) error {
+	rows, err := db.Query(`SELECT id, title, content FROM notes`)
+	if err != nil {
+		return err
+	}
+	type row struct{ id, title, content string }
+	var all []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.title, &r.content); err != nil {
+			rows.Close()
+			return err
+		}
+		all = append(all, r)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, r := range all {
+		if r.title == DeriveTitle("", Unescape(r.content)) {
+			continue
+		}
+		if _, err := db.Exec(`UPDATE notes SET title_set = 1 WHERE id = ?`, r.id); err != nil {
+			return err
+		}
+	}
+	return nil
+}

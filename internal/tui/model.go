@@ -63,6 +63,10 @@ type model struct {
 	editing    *store.Note // nil while composing a brand-new note
 	gen        int         // counts edits, so a stale autosave can tell
 	focusTitle bool
+	// The title field as the note was opened with it. A save sends the title
+	// only when the field no longer says this - otherwise it saves the body
+	// alone, so a rename made in the browser meanwhile is not put back.
+	openedTitle string
 
 	autosaved    bool // an autosave has written at least once
 	savedGen     int  // the edit the note on disk is up to date with
@@ -347,9 +351,17 @@ func (m *model) startEdit(n *store.Note) {
 	} else {
 		cp := *n
 		m.editing = &cp
-		m.title.SetValue(n.Title)
+		// A title nobody chose is the first line, and the field's placeholder
+		// already says a blank title means exactly that. Filling it in would
+		// make the first save turn it into a chosen one, frozen there.
+		if n.TitleSet {
+			m.title.SetValue(n.Title)
+		} else {
+			m.title.SetValue("")
+		}
 		m.body.SetValue(n.Content)
 	}
+	m.openedTitle = m.title.Value()
 	m.title.Blur()
 	m.body.Focus()
 	m.body.CursorEnd()
@@ -584,7 +596,7 @@ func (m *model) save() tea.Cmd {
 	if m.editing == nil {
 		saved, err = m.st.Create(title, content)
 	} else {
-		saved, err = m.st.Update(m.editing.ID, title, content)
+		saved, err = m.saveExisting(title, content)
 	}
 	if err != nil {
 		m.err = err
@@ -851,4 +863,15 @@ func wrapSource(s string, width int) string {
 		return s
 	}
 	return wrap.String(wordwrap.String(s, width), width)
+}
+
+// saveExisting writes the note being edited. The title goes with it only when
+// it was changed here; otherwise only the body is saved, and whatever title
+// the note has - chosen here, chosen in the browser, or still following the
+// first line - stays as the store has it.
+func (m *model) saveExisting(title, content string) (store.Note, error) {
+	if title == m.openedTitle {
+		return m.st.UpdateContent(m.editing.ID, content)
+	}
+	return m.st.Update(m.editing.ID, title, content)
 }

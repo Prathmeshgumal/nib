@@ -356,3 +356,55 @@ func TestWritingComingBackFromAnExternalEditorIsSavedToo(t *testing.T) {
 		t.Errorf("stored content = %q, want %q", got, "rewritten elsewhere")
 	}
 }
+
+// The bug: a note renamed in the browser while the terminal had it open. The
+// terminal's next save carried the title it opened with and put it back. With
+// the title field untouched, a save is of the body alone.
+func TestARenameElsewhereSurvivesTyping(t *testing.T) {
+	m, st := newTestModel(t)
+	n, err := st.Create("", "shopping list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = press(m, reloadedMsg{notes: mustList(t, st)})
+	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	// A title nobody chose is not put in the field, where saving would freeze it.
+	if got := m.title.Value(); got != "" {
+		t.Errorf("title field = %q, want it blank for a title that follows the first line", got)
+	}
+
+	if _, err := st.Update(n.ID, "Groceries", "shopping list"); err != nil {
+		t.Fatal(err)
+	}
+	m = press(m, key('!'))
+	m = press(m, autosaveMsg{gen: m.gen})
+
+	got, _ := st.Get(n.ID)
+	if got.Title != "Groceries" {
+		t.Errorf("title = %q, want the rename kept", got.Title)
+	}
+	if got.Content != "shopping list!" {
+		t.Errorf("content = %q, want the typing saved", got.Content)
+	}
+}
+
+// Changing the title here still changes it.
+func TestATitleTypedHereIsKept(t *testing.T) {
+	m, st := newTestModel(t)
+	n, _ := st.Create("", "shopping list")
+	m = press(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = press(m, reloadedMsg{notes: mustList(t, st)})
+	m = press(m, tea.KeyMsg{Type: tea.KeyEnter})
+	m = press(m, tea.KeyMsg{Type: tea.KeyTab})
+	for _, r := range "Groceries" {
+		m = press(m, key(r))
+	}
+	m = press(m, autosaveMsg{gen: m.gen})
+
+	got, _ := st.Get(n.ID)
+	if got.Title != "Groceries" || !got.TitleSet {
+		t.Errorf("title = %q set=%v, want the typed title, chosen", got.Title, got.TitleSet)
+	}
+}

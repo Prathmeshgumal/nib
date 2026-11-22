@@ -174,3 +174,28 @@ func TestUnknownIDsAndMethods(t *testing.T) {
 		}
 	}
 }
+
+// The bug: renaming a note in one interface while the other had it open. The
+// other's next save of the body carried its old title and put it back - and a
+// blank one came back as the first line. A save without a title is a save of
+// the body alone.
+func TestSavingTheBodyKeepsAChosenTitle(t *testing.T) {
+	h, _ := newTestServer(t)
+	created := decode[store.Note](t, do(t, h, "POST", "/api/notes", map[string]string{"content": "shopping list"}))
+
+	do(t, h, "PUT", "/api/notes/"+created.ID, map[string]string{"title": "Groceries", "content": "shopping list"})
+	rec := do(t, h, "PUT", "/api/notes/"+created.ID, map[string]string{"content": "shopping list and eggs"})
+	got := decode[store.Note](t, rec)
+	if got.Title != "Groceries" || !got.TitleSet {
+		t.Errorf("title = %q set=%v, want the chosen title kept", got.Title, got.TitleSet)
+	}
+	if got.Content != "shopping list and eggs" {
+		t.Errorf("content = %q, want the new body", got.Content)
+	}
+
+	// An explicit blank title hands the name back to the first line.
+	rec = do(t, h, "PUT", "/api/notes/"+created.ID, map[string]string{"title": "", "content": "eggs"})
+	if got := decode[store.Note](t, rec); got.Title != "eggs" || got.TitleSet {
+		t.Errorf("title = %q set=%v, want the first line again", got.Title, got.TitleSet)
+	}
+}
