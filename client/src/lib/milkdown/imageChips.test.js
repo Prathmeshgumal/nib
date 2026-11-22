@@ -91,4 +91,24 @@ describe('an image is a chip until opened', () => {
     expect(root.querySelectorAll('.nib-image-chip').length).toBe(0);
     expect(root.querySelectorAll('.nib-image-collapse').length).toBe(2);
   });
+
+  it('looks selected when a text selection covers its image', async () => {
+    const view = await open('See ![](attachments/0123456789abcdef.png) here\n\nafter\n');
+    const { TextSelection } = await import('@milkdown/kit/prose/state');
+    const chip = () => root.querySelector('.nib-image-chip');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, view.state.doc.content.size - 1)));
+    expect(chip().classList.contains('nib-image-chip-selected')).toBe(true);
+    // A selection that stops before the image leaves it alone.
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 3)));
+    expect(chip().classList.contains('nib-image-chip-selected')).toBe(false);
+  });
+
+  it('leaves the editor focused after opening or closing, so Ctrl+A selects the note', async () => {
+    const view = await open('See ![](attachments/0123456789abcdef.png) here\n');
+    press(root.querySelector('.nib-image-chip'));
+    expect(document.activeElement).toBe(view.dom);
+    view.dom.blur();
+    press(root.querySelector('.nib-image-collapse'));
+    expect(document.activeElement).toBe(view.dom);
+  });
 });

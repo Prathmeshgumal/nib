@@ -768,7 +768,9 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+/* In the selection, the chip takes the same blue as the selected text around
+ * it, so a copy plainly includes the image. */
 .milkdown .nib-image-chip-selected {
-  border-color: var(--ring);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 35%, transparent);
+  border-color: var(--nib-accent);
+  background: var(--crepe-color-selected);
 }

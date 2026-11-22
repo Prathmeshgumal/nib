@@ -38,6 +38,15 @@ function redraw(view) {
   view.dispatch(view.state.tr.setMeta(imageChipsKey, 'redraw').setMeta('addToHistory', false));
 }
 
+// Opening or closing an image keeps the editor focused. The press is held back
+// from the editor (see onPress), so without this Ctrl+A afterwards selected
+// the whole page instead of the note.
+function toggle(view, name, open) {
+  setExpanded(name, open);
+  redraw(view);
+  view.focus();
+}
+
 // Acts on pointerdown, not click: by click time the editor has already moved
 // the selection onto the image, which is not what pressing a chip means.
 function onPress(el, act) {
@@ -82,8 +91,7 @@ function chip(view, { node, name, number }, getPos, selected) {
   button.append(thumb, label);
   onPress(button, (e) => {
     if (e.shiftKey) return select(view, getPos);
-    setExpanded(name, true);
-    redraw(view);
+    toggle(view, name, true);
   });
   return button;
 }
@@ -96,10 +104,7 @@ function collapse(view, { name, number }) {
   button.setAttribute('aria-label', `Collapse image ${number} to a chip`);
   button.title = 'Collapse to a chip';
   button.innerHTML = EXPAND_ICON;
-  onPress(button, () => {
-    setExpanded(name, false);
-    redraw(view);
-  });
+  onPress(button, () => toggle(view, name, false));
   return button;
 }
 
@@ -120,7 +125,11 @@ function decorate(view, state) {
     } else {
       decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'nib-image-collapsed' }));
       // A block image's chip sits on its own line; an inline one in the text.
-      const selected = selection instanceof NodeSelection && selection.from === pos;
+      // Selected on its own, or inside a selection of text - the browser paints
+      // text it is copying but not a chip, so the chip paints itself.
+      const selected =
+        (selection instanceof NodeSelection && selection.from === pos) ||
+        (!selection.empty && selection.from <= pos && pos + node.nodeSize <= selection.to);
       decorations.push(
         Decoration.widget(pos, (_view, getPos) => chip(view, image, getPos, selected), {
           side: -1,
