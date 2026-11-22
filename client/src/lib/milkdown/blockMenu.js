@@ -1,11 +1,10 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import { MENU_GROUPS } from './blockMenuItems';
-import { blockRangeAt } from './blockOps';
+import { blockRangeAt, selectBlock } from './blockOps';
 
 // Re-exported so the menu, the plugin and the tests all name one place.
-export { blockRangeAt, deleteBlock, duplicateBlock, targetRange } from './blockOps';
+export { blockRangeAt, deleteBlock, duplicateBlock, selectBlock, targetRange } from './blockOps';
 
 // Crepe's block handle drags and nothing else: the plus inserts a block below,
 // the dots move the block, and there is no way to change or remove one. Every
@@ -16,6 +15,15 @@ export { blockRangeAt, deleteBlock, duplicateBlock, targetRange } from './blockO
 // block sits under a pointer needs layout, which jsdom does not have; working
 // out what to do with that block does not. Everything below the first function
 // is therefore testable, and is tested.
+
+// Whether a scroll should close the menu. It hangs at a fixed spot on the
+// page, so when the note scrolls it would be left beside the wrong block. But
+// in a short window the menu has a scrollbar of its own, and scrolling through
+// it is reaching for an item, not leaving.
+export function scrollCloses(menu, target) {
+  if (!menu) return false;
+  return !(target instanceof Node && menu.contains(target));
+}
 
 export const blockMenuKey = new PluginKey('nibBlockMenu');
 
@@ -114,12 +122,8 @@ export const blockMenu = $prose((ctx) => {
           // The item acts on whatever the selection is in, so the selection
           // has to be inside the block the dots belong to first.
           const { state } = view;
-          const range = blockRangeAt(state.doc, pos);
-          if (range) {
-            view.dispatch(state.tr.setSelection(
-              TextSelection.near(state.doc.resolve(range.from + 1)),
-            ));
-          }
+          const selection = selectBlock(state.doc, blockRangeAt(state.doc, pos));
+          if (selection) view.dispatch(state.tr.setSelection(selection));
           if (!view.hasFocus()) view.focus();
           item.run(ctx);
         });
@@ -223,14 +227,17 @@ export const blockMenu = $prose((ctx) => {
       document.addEventListener('pointerup', onPointerUp, true);
       // Capture, so it runs before the app's own Escape handler on window.
       document.addEventListener('keydown', onKeyDown, true);
-      window.addEventListener('scroll', close, true);
+      const onScroll = (event) => {
+        if (scrollCloses(menu, event.target)) close();
+      };
+      window.addEventListener('scroll', onScroll, true);
 
       return {
         destroy: () => {
           document.removeEventListener('pointerdown', onPointerDown, true);
           document.removeEventListener('pointerup', onPointerUp, true);
           document.removeEventListener('keydown', onKeyDown, true);
-          window.removeEventListener('scroll', close, true);
+          window.removeEventListener('scroll', onScroll, true);
           close();
         },
       };

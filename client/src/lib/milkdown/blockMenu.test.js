@@ -7,7 +7,9 @@ import {
   buildMenu,
   deleteBlock,
   dragHandle,
+  scrollCloses,
   duplicateBlock,
+  selectBlock,
   targetRange,
 } from './blockMenu';
 import { ALL_ITEMS, MENU_GROUPS } from './blockMenuItems';
@@ -90,6 +92,55 @@ describe('deleting a block', () => {
     const e = await open('untouched\n');
     expect(deleteBlock(e.view.state, e.view.dispatch.bind(e.view), null)).toBe(false);
     expect(e.markdown()).toContain('untouched');
+  });
+});
+
+// The menu puts the selection in the block whose dots were pressed, and the
+// items act on whatever block the selection is in. A block with no text in it
+// - a divider, an image - has nowhere for a cursor to go, and a cursor placed
+// "near" it lands in the next block instead.
+describe('acting on a block with no text in it', () => {
+  const run = (e, key) => {
+    const item = ALL_ITEMS.find((i) => i.key === key);
+    e.crepe.editor.action((ctx) => item.run(ctx));
+  };
+  const pick = (e, pos) => {
+    const { state } = e.view;
+    e.view.dispatch(state.tr.setSelection(selectBlock(state.doc, blockRangeAt(state.doc, pos))));
+  };
+
+  it('deletes the divider, not the paragraph after it', async () => {
+    const e = await open('---\n\nkeep me\n');
+    pick(e, 0);
+    run(e, 'delete');
+    const out = e.markdown();
+    expect(out).not.toContain('---');
+    expect(out).toContain('keep me');
+  });
+
+  it('deletes a divider that is the whole note', async () => {
+    const e = await open('---\n');
+    pick(e, 0);
+    run(e, 'delete');
+    expect(e.markdown()).not.toContain('---');
+  });
+
+  it('duplicates the divider, not the paragraph after it', async () => {
+    const e = await open('---\n\nonly once\n');
+    pick(e, 0);
+    run(e, 'duplicate');
+    const out = e.markdown();
+    expect(out.match(/---/g)).toHaveLength(2);
+    expect(out.match(/only once/g)).toHaveLength(1);
+  });
+
+  it('still puts a cursor inside a paragraph', async () => {
+    const e = await open('first\n\nsecond\n');
+    pick(e, e.posOf('second'));
+    run(e, 'delete');
+    const out = e.markdown();
+    expect(out).toContain('first');
+    expect(out).not.toContain('second');
   });
 });
 
@@ -245,5 +296,28 @@ describe('the menu as it is drawn', () => {
     press('Home');
     expect(document.activeElement).toBe(items[0]);
     menu.remove();
+  });
+});
+
+// The menu hangs at a fixed spot on the page, so scrolling the note would
+// leave it stranded beside the wrong block - but in a short window the menu
+// scrolls too, and that must not close it.
+describe('scrolling with the menu open', () => {
+  const menu = document.createElement('div');
+  const item = document.createElement('button');
+  menu.append(item);
+
+  it('closes it when the note scrolls', () => {
+    expect(scrollCloses(menu, document.createElement('div'))).toBe(true);
+    expect(scrollCloses(menu, document)).toBe(true);
+  });
+
+  it('keeps it open when the menu itself scrolls', () => {
+    expect(scrollCloses(menu, menu)).toBe(false);
+    expect(scrollCloses(menu, item)).toBe(false);
+  });
+
+  it('has nothing to close without a menu', () => {
+    expect(scrollCloses(null, document)).toBe(false);
   });
 });

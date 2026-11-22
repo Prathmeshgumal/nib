@@ -38,9 +38,9 @@
   --crepe-color-inverse: var(--foreground);
   --crepe-color-on-inverse: var(--background);
 
-  /* Notion-ish: a red that reads as a different kind of text, not as an error.
-   * The destructive token on its own is the red of a delete button. */
-  --crepe-color-inline-code: color-mix(in oklch, var(--destructive) 70%, var(--foreground));
+  /* Code is set apart by its chip and its typeface, not by a colour: blue is
+   * kept for links and finished to-dos, and red would read as an error. */
+  --crepe-color-inline-code: var(--foreground);
   --crepe-color-error: var(--destructive);
   --crepe-color-hover: var(--accent);
   /* Selected text. The hover grey was 1.2:1 against the note in dark mode, so
@@ -54,7 +54,7 @@
    * as two different applications. */
   --crepe-font-title: inherit;
   --crepe-font-default: inherit;
-  --crepe-font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --crepe-font-code: var(--font-mono);
 
   --crepe-shadow-1: 0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.1);
   --crepe-shadow-2: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -69,6 +69,10 @@
 .milkdown .ProseMirror h4 { font-size: 1.1em; margin-top: 1rem; }
 .milkdown .ProseMirror h5,
 .milkdown .ProseMirror h6 { font-size: 1em; margin-top: 1rem; }
+.milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
 .milkdown .ProseMirror h1:first-child,
 .milkdown .ProseMirror h2:first-child,
 .milkdown .ProseMirror h3:first-child { margin-top: 0; }
@@ -105,39 +109,58 @@
   padding-inline: var(--nib-gutter);
 }
 
-/* Crepe spaces the bar's buttons 12px apart and its dividers 20px. Tighter,
- * every group fits on one row at a 1280px window, instead of the headings
- * dropping to a second row on their own. */
-.nib-editor .milkdown .milkdown-top-bar .top-bar-item {
-  margin: 6px 3px;
-}
-.nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
-  margin: 10px 6px;
-}
-
-/* The bar is the note's, not a second panel laid over it: the same colour as
- * the page it sits on, with a rule underneath. Painted in the menu colour it
- * stopped short of the editor's scrollbar and looked a size smaller than the
- * title line above it. */
+/* The bar is a small pill centred over the writing, not a full-width strip:
+ * it reads as a tool you reach for rather than as a second header. The strip
+ * it sits in stays sticky and takes the note's colour, so text scrolling up
+ * passes behind it instead of showing round the pill's corners. */
 .nib-editor .milkdown .milkdown-top-bar {
   background: var(--card);
-  border-bottom-color: var(--border);
-  padding: 0;
+  border-bottom: 0;
+  padding: 12px 16px 4px;
+  min-height: 0;
+  justify-content: center;
 }
 
-/* The buttons line up with the writing: the first one starts where the text
- * does, under the title, so the note reads as one column instead of three
- * different left edges. */
 .nib-editor .milkdown .milkdown-top-bar .top-bar-inner {
-  /* Only the left edge follows the column. The right is left free, so that at
-   * middling widths the buttons use the room past the text before they wrap -
-   * held to the column on both sides, a 900px window wrapped them three deep.
-   * A percentage padding is a share of the bar's width, which is what lets
-   * this work out where the centred column starts. */
-  padding-left: calc(
-    max(0px, (100% - var(--nib-column) - 2 * var(--nib-gutter)) / 2) + var(--nib-gutter) - 3px
-  );
-  padding-right: 0;
+  width: fit-content;
+  max-width: 100%;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 0px);
+  background: var(--card);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.nib-editor .milkdown .milkdown-top-bar .top-bar-item {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 5px;
+  border-radius: calc(var(--radius) - 4px);
+  transition: background 0.12s;
+}
+
+.nib-editor .milkdown .milkdown-top-bar .top-bar-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* A lit button is a grey chip with dark ink, the way shadcn's toggles are.
+ * Blue is kept for links and finished to-dos, so it is never ambiguous. */
+.nib-editor .milkdown .milkdown-top-bar .top-bar-item.active {
+  background: var(--accent);
+}
+.nib-editor .milkdown .milkdown-top-bar .top-bar-item.active svg {
+  color: var(--foreground);
+  fill: var(--foreground);
+}
+
+.nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
 }
 
 /* Without this, tabbing along the bar showed nothing at all: Crepe takes the
@@ -149,7 +172,7 @@
   outline-offset: 1px;
 }
 
-/* A finger needs more than the 32px a mouse is happy with. */
+/* A finger needs more than the 30px a mouse is happy with. */
 @media (pointer: coarse) {
   .nib-editor .milkdown .milkdown-top-bar .top-bar-item {
     width: 44px;
@@ -163,23 +186,20 @@
 }
 
 @media (max-width: 640px) {
-  /* On a phone the bar is one row that scrolls sideways. Wrapped, it was three
-   * rows deep - 133px of a 740px screen before the keyboard took half of the
-   * rest - and the dividers dangled at the ends of the rows. */
+  /* On a phone the pill is one row that scrolls sideways. Wrapped, it was
+   * three rows deep before the keyboard took half of what was left. */
+  .nib-editor .milkdown .milkdown-top-bar {
+    padding: 8px 8px 2px;
+  }
   .nib-editor .milkdown .milkdown-top-bar .top-bar-inner {
+    width: 100%;
+    justify-content: flex-start;
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
-    padding-inline: 0;
   }
   .nib-editor .milkdown .milkdown-top-bar .top-bar-inner::-webkit-scrollbar {
     display: none;
-  }
-  .nib-editor .milkdown .milkdown-top-bar .top-bar-item {
-    margin: 2px;
-  }
-  .nib-editor .milkdown .milkdown-top-bar .top-bar-divider {
-    margin: 10px 4px;
   }
 }
 
@@ -188,8 +208,149 @@
  * everything in the note and has an edge of its own. */
 .milkdown .milkdown-toolbar {
   z-index: 20;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--popover);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
   box-shadow: var(--crepe-shadow-2);
+}
+
+/* The same buttons as the pill at the top, at the same size: two toolbars
+ * that do the same job should not look like they came from two apps. */
+.milkdown .milkdown-toolbar .toolbar-item {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 4px);
+  transition: background 0.12s;
+}
+.milkdown .milkdown-toolbar .toolbar-item svg {
+  width: 20px;
+  height: 20px;
+}
+.milkdown .milkdown-toolbar .toolbar-item.active {
+  background: var(--accent);
+}
+.milkdown .milkdown-toolbar .toolbar-item.active svg {
+  color: var(--foreground);
+  fill: var(--foreground);
+}
+.milkdown .milkdown-toolbar .divider {
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+/* The menu that "/" opens, sized and coloured like the one behind the six
+ * dots: the same text size, the same row height, the same small grey group
+ * names - and a grey highlight, not the blue of selected text. */
+.milkdown .milkdown-slash-menu {
+  z-index: 20;
+  min-width: 13rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--crepe-shadow-2);
+  font-size: 0.875rem;
+}
+.milkdown .milkdown-slash-menu .tab-group {
+  padding: 4px 4px 0;
+  border-bottom-color: var(--border);
+}
+.milkdown .milkdown-slash-menu .tab-group ul {
+  padding: 0 0 4px;
+  gap: 2px;
+}
+.milkdown .milkdown-slash-menu .tab-group ul li {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  border-radius: calc(var(--radius) - 2px);
+}
+.milkdown .milkdown-slash-menu .tab-group ul li:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.milkdown .milkdown-slash-menu .tab-group ul li.selected {
+  background: var(--accent);
+  color: var(--foreground);
+}
+.milkdown .milkdown-slash-menu .menu-groups {
+  padding: 4px;
+  max-height: min(24rem, 60vh);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group h6 {
+  padding: 6px 10px 2px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li {
+  min-width: 0;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 2px);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li > span {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 20px;
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+  fill: var(--muted-foreground);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover,
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li.active {
+  background: var(--accent);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover svg,
+.milkdown .milkdown-slash-menu .menu-groups .menu-group li.active svg {
+  color: var(--foreground);
+  fill: var(--foreground);
+}
+.milkdown .milkdown-slash-menu .menu-groups .menu-group + .menu-group::before {
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* The boxes for pasting and previewing a link. Crepe gives them a faint
+ * shadow and no edge, at the same depth as the sticky bar - so where the two
+ * met, the box lost its top and read as part of the page. They float above
+ * the note now, with an edge and a shadow, like every other menu in nib. */
+.milkdown .milkdown-link-edit,
+.milkdown .milkdown-link-preview {
+  z-index: 20;
+}
+.milkdown .milkdown-link-edit > .link-edit,
+.milkdown .milkdown-link-preview > .link-preview {
+  height: 36px;
+  align-items: center;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--crepe-shadow-2);
+}
+.milkdown .milkdown-link-edit > .link-edit {
+  padding: 4px 6px 4px 12px;
+}
+.milkdown .milkdown-link-edit > .link-edit > .input-area {
+  color: var(--popover-foreground);
+}
+.milkdown .milkdown-link-edit > .link-edit > .input-area::placeholder {
+  color: var(--muted-foreground);
 }
 
 /* Crepe paints a code block in `surface`, the same colour as the menus that
@@ -230,6 +391,39 @@
 .milkdown .milkdown-list-item-block li .label-wrapper svg {
   color: var(--muted-foreground);
   fill: var(--muted-foreground);
+}
+
+/* To-dos are round: an empty ring to do, a filled blue circle with a white
+ * tick when done. The shapes are nib's own (see taskIcons.js); the colours
+ * are set here so they follow the theme. */
+.milkdown .milkdown-list-item-block li .label-wrapper svg.nib-task {
+  width: 18px;
+  height: 18px;
+}
+.milkdown .milkdown-list-item-block li .label-wrapper svg.nib-task .ring {
+  fill: none;
+  stroke: var(--input);
+  stroke-width: 1.6;
+}
+.milkdown .milkdown-list-item-block li .label-wrapper svg.nib-task .disc {
+  fill: var(--nib-done);
+}
+.milkdown .milkdown-list-item-block li .label-wrapper svg.nib-task .tick {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.milkdown .milkdown-list-item-block li .label-wrapper .unchecked:hover svg.nib-task .ring {
+  stroke: var(--nib-done);
+}
+
+/* A finished to-do steps back: struck through and greyed, so what is left to
+ * do is what stands out. Only its own line - not the sub-tasks under it. */
+.milkdown .milkdown-list-item-block li:has(> .label-wrapper .checked) > .children > [data-content-dom] > p {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
 }
 
 /* Inline code sat as bare red text: the chip behind it is mixed from
@@ -280,6 +474,9 @@
   min-width: 13rem;
   max-height: min(24rem, 70vh);
   overflow-y: auto;
+  /* Reaching the end of the list must not carry on into the note: that
+   * scroll would close the menu out from under the pointer. */
+  overscroll-behavior: contain;
   padding: 4px;
   display: flex;
   flex-direction: column;

@@ -9,6 +9,7 @@ import { emptyTaskPlugin } from './emptyTask';
 import { blockMenu } from './blockMenu';
 import { buildTopBar } from './topBar';
 import { editorChrome } from './editorChrome';
+import { taskCheckedIcon, taskUncheckedIcon } from './taskIcons';
 
 // Two things in Milkdown 7.22.2 damage a note on the way through.
 //
@@ -111,6 +112,11 @@ export function createEditor(root, { markdown = '', features = {}, onUpload } = 
       ...(onUpload ? { [Crepe.Feature.ImageBlock]: { onUpload } } : {}),
       // Headings on the bar itself, not only behind the dropdown.
       [Crepe.Feature.TopBar]: { buildTopBar },
+      // Round to-dos: a ring to do, a filled blue circle when done.
+      [Crepe.Feature.ListItem]: {
+        checkBoxCheckedIcon: taskCheckedIcon,
+        checkBoxUncheckedIcon: taskUncheckedIcon,
+      },
       // Crepe's own is "Please enter...", which reads like a form field.
       [Crepe.Feature.Placeholder]: { text: 'Start writing, or type / for blocks' },
     },
