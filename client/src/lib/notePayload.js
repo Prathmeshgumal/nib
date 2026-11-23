@@ -20,3 +20,18 @@ export function savePayload(note) {
   if (!note.id || note.titleEdited) return { title: note.title, content: note.content };
   return { content: note.content };
 }
+
+// The list after a save: the saved note keeps its place but takes its new
+// name. The list is not refetched on a save, so the open note is not lifted
+// to the top mid-sentence (see App.jsx) - but a renamed note still showing
+// its old name looked as if the rename had not taken.
+export function withSavedName(list, saved) {
+  if (!list || !saved) return list;
+  const at = list.findIndex((n) => n.id === saved.id);
+  if (at < 0) return list;
+  const row = list[at];
+  if (row.title === saved.title && row.title_set === saved.title_set) return list;
+  const next = list.slice();
+  next[at] = { ...row, title: saved.title, title_set: saved.title_set };
+  return next;
+}

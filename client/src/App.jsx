@@ -5,7 +5,7 @@ import NoteList from '@/components/NoteList';
 import NotePane from '@/components/NotePane';
 import EmptyState from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
-import { editable, savePayload } from '@/lib/notePayload';
+import { editable, savePayload, withSavedName } from '@/lib/notePayload';
 import { deriveTitle } from '@/lib/noteText';
 import { TrashDialog } from '@/components/TrashDialog';
 import { setAttachmentsDir } from '@/lib/milkdown/copyPaths';
@@ -146,8 +146,10 @@ export default function App() {
       // note may have been typed into while the request was in flight.
       setNote((n) => (n ? { ...n, id: saved.id, updated_at: saved.updated_at } : opened(saved)));
       // A note that has just been created is not in the list yet. Every other
-      // save leaves the list alone - see the note on refreshing above.
+      // save leaves the list in its order - see the note on refreshing above -
+      // and only gives the saved note its current name.
       if (!current.id) refresh(queryRef.current);
+      else setNotes((list) => withSavedName(list, saved));
       if (!quiet) toast.success(current.id ? 'Note saved' : 'Note created');
       return saved;
     } catch (e) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editable, savePayload } from './notePayload';
+import { editable, savePayload, withSavedName } from './notePayload';
 
 describe('opening a note for editing', () => {
   it('leaves the title field blank when the title follows the first line', () => {
@@ -27,5 +27,27 @@ describe('what a save sends', () => {
 
   it('sends both when creating', () => {
     expect(savePayload({ id: null, title: '', content: 'b' })).toEqual({ title: '', content: 'b' });
+  });
+});
+
+describe('withSavedName', () => {
+  const list = [
+    { id: 'a', title: 'Older', title_set: true, updated_at: '1' },
+    { id: 'b', title: '23 Nov', title_set: false, updated_at: '2' },
+  ];
+
+  it('gives the saved note its new name, where it already is in the list', () => {
+    const out = withSavedName(list, { id: 'b', title: '23 November planning', title_set: true, updated_at: '3' });
+    expect(out.map((n) => n.id)).toEqual(['a', 'b']);
+    expect(out[1]).toMatchObject({ title: '23 November planning', title_set: true });
+  });
+
+  it('leaves the list as it was when the name did not change', () => {
+    expect(withSavedName(list, { id: 'b', title: '23 Nov', title_set: false })).toBe(list);
+  });
+
+  it('leaves a list without the note alone', () => {
+    expect(withSavedName(list, { id: 'z', title: 'New' })).toBe(list);
+    expect(withSavedName(null, { id: 'b', title: 'New' })).toBe(null);
   });
 });

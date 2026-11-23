@@ -26,9 +26,14 @@ export default function NotePane({ note, status, onChange, onBack, onReady, side
   useMinuteTick();
 
   // A note saved without a title is called by its first line, in the list and
-  // here alike. Shown as the placeholder, the title line says what the list
-  // says while the first line is still being typed, instead of "Untitled".
+  // here alike. That name is real text in the field, not a placeholder: shown
+  // as one it looked filled in while being empty, so the cursor sat at its
+  // start and Backspace had nothing to remove (issue #52). It follows the
+  // first line until it is edited; only an edit makes it a chosen title (see
+  // savePayload). Cleared on purpose, the field stays empty and the first
+  // line comes back as a hint of what the note will be called.
   const derived = deriveTitle('', note.content);
+  const titleValue = note.titleEdited || note.title ? note.title : derived;
   const placeholder = derived || 'Untitled';
 
   // The whole note for Claude Code, images as files. The button says what
@@ -75,16 +80,10 @@ export default function NotePane({ note, status, onChange, onBack, onReady, side
         )}
 
         <Input
-          value={note.title}
+          value={titleValue}
           placeholder={placeholder}
           aria-label="Note title"
-          // A title taken from the first line is the note's name all the
-          // same, so it is set in the same ink as a typed one. Grey made a
-          // saved note look as if it had no name at all.
-          className={cn(
-            'h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus-visible:ring-0 md:text-[15px] dark:bg-transparent',
-            derived && 'placeholder:text-foreground'
-          )}
+          className="h-8 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] font-semibold shadow-none focus-visible:ring-0 md:text-[15px] dark:bg-transparent"
           onChange={(e) => onChange({ ...note, title: e.target.value, titleEdited: true })}
         />
 
