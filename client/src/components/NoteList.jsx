@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { FileText, PanelLeftClose, Plus, Search, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, FileText, PanelLeftClose, Plus, Search, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -15,6 +15,29 @@ export const SIDEBAR_SHORTCUT = isMac ? '⌘\\' : 'Ctrl+\\';
 // One row of the sidebar's actions: icon, words, and anything on the right.
 const rowClass =
   'text-foreground/80 hover:bg-accent hover:text-foreground h-8 w-full justify-start gap-2.5 px-2 font-normal pointer-coarse:h-11';
+
+// Whether the notes list is folded away, remembered per browser like the
+// sidebar itself. Blocked storage costs the memory, not the fold.
+const FOLD_KEY = 'nib.notesFolded';
+function readFolded() {
+  try {
+    return localStorage.getItem(FOLD_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function writeFolded(folded) {
+  try {
+    if (folded) localStorage.setItem(FOLD_KEY, '1');
+    else localStorage.removeItem(FOLD_KEY);
+  } catch {
+    // See readFolded.
+  }
+}
+
+// Rows the arrow keys can reach: a folded row is not on screen.
+const visibleRows = (list) =>
+  [...(list?.querySelectorAll('[data-note-row]') ?? [])].filter((row) => row.offsetParent !== null || !row.closest('li')?.className.includes('md:hidden'));
 
 function Kbd({ children }) {
   return (
@@ -39,6 +62,16 @@ export default function NoteList({
   className,
 }) {
   useMinuteTick();
+  // Issue #53: dozens of notes made the sidebar one long list. Folded, it
+  // keeps only the open note, so you can still see and delete it. A search
+  // always shows what it found - folding is for browsing, not for hiding
+  // results. On a phone the list is a screen of its own and never folds.
+  const [folded, setFoldedState] = useState(readFolded);
+  const setFolded = (next) => {
+    setFoldedState(next);
+    writeFolded(next);
+  };
+  const folding = folded && !query;
   const search = useRef(null);
   const list = useRef(null);
 
@@ -46,7 +79,7 @@ export default function NoteList({
   // search, the way a list of results does everywhere else.
   const onRowKey = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    const rows = [...(list.current?.querySelectorAll('[data-note-row]') ?? [])];
+    const rows = visibleRows(list.current);
     const at = rows.indexOf(e.currentTarget);
     if (at < 0) return;
     e.preventDefault();
@@ -150,7 +183,7 @@ export default function NoteList({
               }
               if (e.key === 'ArrowDown' && notes?.length) {
                 e.preventDefault();
-                list.current?.querySelector('[data-note-row]')?.focus();
+                visibleRows(list.current)[0]?.focus();
               }
             }}
           />
@@ -181,11 +214,25 @@ export default function NoteList({
         </Button>
       </div>
 
-      <div className="text-muted-foreground flex items-center justify-between px-4 pt-3 pb-1.5 text-xs font-medium">
+      <div className="text-muted-foreground flex items-center justify-between px-4 pt-3 pb-1.5 text-xs font-medium md:hidden">
         <span>Notes</span>
-        <span className="tabular-nums" aria-live="polite">
-          {count}
-        </span>
+        <span className="tabular-nums">{count}</span>
+      </div>
+      <div className="hidden px-2 pt-2 pb-0.5 md:block">
+        <button
+          type="button"
+          data-notes-toggle
+          aria-expanded={!folded}
+          title={folded ? 'Show all notes' : 'Fold the notes away'}
+          onClick={() => setFolded(!folded)}
+          className="text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring/50 flex h-7 w-full items-center gap-1 rounded-md px-2 text-xs font-medium outline-none focus-visible:ring-[3px]"
+        >
+          <ChevronDown className={cn('size-3.5 transition-transform', folded && '-rotate-90')} aria-hidden="true" />
+          <span>Notes</span>
+          <span className="ml-auto tabular-nums" aria-live="polite">
+            {count}
+          </span>
+        </button>
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-2 pb-3">
@@ -200,7 +247,7 @@ export default function NoteList({
               const selected = note.id === selectedId;
               const name = note.title || 'Untitled';
               return (
-                <li key={note.id} className="group/row relative">
+                <li key={note.id} className={cn('group/row relative', folding && !selected && 'md:hidden')}>
                   <button
                     type="button"
                     data-note-row
