@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import { replaceAll } from '@milkdown/kit/utils';
+import { editorViewCtx } from '@milkdown/kit/core';
 import MilkdownEditor from './MilkdownEditor';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -230,6 +231,31 @@ describe('copying the whole note', () => {
       'Fix (image 1) and (image 2)\n\n/data/attachments/0123456789abcdef.png\n/data/attachments/fedcba9876543210.jpg',
     );
     setAttachmentsDir(null);
+    await m.unmount();
+  });
+});
+
+// Issue #60: a note is added to at the bottom, so it opens there.
+describe('opening a note', () => {
+  const selection = (m) => m.crepe.editor.action((ctx) => ctx.get(editorViewCtx).state.selection);
+  const docEnd = (m) => m.crepe.editor.action((ctx) => ctx.get(editorViewCtx).state.doc.content.size);
+
+  it('puts the cursor after the last word', async () => {
+    const m = await mount({ note: note('a', '# Title\n\nFirst paragraph.\n\nLast paragraph.\n') });
+    const sel = selection(m);
+    expect(sel.empty).toBe(true);
+    expect(sel.$head.parent.textContent).toBe('Last paragraph.');
+    expect(sel.$head.parentOffset).toBe('Last paragraph.'.length);
+    // Just inside the closing paragraph, which is the last thing in the note.
+    expect(sel.head).toBe(docEnd(m) - 1);
+    await m.unmount();
+  });
+
+  it('does not count as an edit', async () => {
+    const onChange = vi.fn();
+    const m = await mount({ note: note('a', '# Title\n\nBody.\n'), onChange });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(m.crepe.pendingMarkdown()).toBeNull();
     await m.unmount();
   });
 });

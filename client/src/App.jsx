@@ -9,6 +9,7 @@ import { editable, savePayload, withSavedName } from '@/lib/notePayload';
 import { deriveTitle } from '@/lib/noteText';
 import { TrashDialog } from '@/components/TrashDialog';
 import { setAttachmentsDir } from '@/lib/milkdown/copyPaths';
+import { findLastNote, rememberLastNote } from '@/lib/lastNote';
 import {
   health,
   createNote,
@@ -119,6 +120,24 @@ export default function App() {
     // A title nobody chose is the first line, as it is in the list.
     document.title = note ? `${deriveTitle(note.title, note.content) || 'Untitled'} · nib` : 'nib';
   }, [note]);
+
+  // A refresh used to land on "No note open", whatever was being written. The
+  // note that was open is remembered, and reopened once the first list
+  // arrives (issue #60). Until that has happened nothing is remembered: the
+  // empty first render would otherwise forget the note before it came back.
+  const reopened = useRef(false);
+  useEffect(() => {
+    if (reopened.current || notes === null) return;
+    reopened.current = true;
+    // A note started in the moment before the list came back is not replaced.
+    if (noteRef.current) return;
+    const last = findLastNote(notes);
+    if (last) setNote(opened(last));
+  }, [notes]);
+
+  useEffect(() => {
+    if (reopened.current) rememberLastNote(note?.id ?? null);
+  }, [note?.id]);
 
   const startNew = () => {
     setNote(blankNote());

@@ -5,6 +5,8 @@ import { tidyEscapes } from '@/lib/milkdown/tidyEscapes';
 import { uploadAttachment } from '@/lib/api';
 import { withImagePaths } from '@/lib/milkdown/copyPaths';
 import { writeClipboard } from '@/lib/milkdown/chromeExtras';
+import { cursorToEnd, scrollToEnd, wideScreen } from '@/lib/milkdown/openAtEnd';
+import { editorViewCtx } from '@milkdown/kit/core';
 
 // The note, as one surface. There is no read mode and no write mode any more:
 // what is on screen is the note, and typing into it is how it changes.
@@ -25,6 +27,7 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
 
     let crepe = null;
     let thrownAway = false;
+    let stopScrolling = null;
     // What the app has been told, and the yardstick the close below measures
     // against. It is set from the editor once it has started rather than from
     // the note, because parsing tidies markdown as it goes - trailing spaces
@@ -87,8 +90,16 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
         }
         // A note that has just been started is there to be written in, so the
         // cursor goes straight into it instead of staying on "New note".
+        // Any other note opens at its end, ready to be added to (issue #60).
         if (!latest.current.note.id && !latest.current.note.content) {
           root.querySelector('.ProseMirror')?.focus();
+        } else {
+          try {
+            crepe.editor.action((ctx) => cursorToEnd(ctx.get(editorViewCtx), { focus: wideScreen() }));
+          } catch {
+            // The note still opens; it just opens at the top.
+          }
+          stopScrolling = scrollToEnd(root);
         }
         // What the app gets is not the editor but one question it can ask:
         // "is there anything you have not told me yet?" Keeping the yardstick
@@ -120,6 +131,7 @@ export default function MilkdownEditor({ note, onChange, onReady }) {
 
     return () => {
       thrownAway = true;
+      stopScrolling?.();
       // Anything typed inside the debounce window has not been reported yet.
       // Reading the editor directly on the way out is what stops the last
       // sentence of a note being lost to a closed tab or a switched note -
